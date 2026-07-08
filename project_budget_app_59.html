@@ -1,0 +1,3402 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>プロジェクト予算管理</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans JP', sans-serif; background: #f5f5f3; color: #1a1a1a; font-size: 14px; }
+.header { background: #fff; border-bottom: 1px solid #e5e5e5; padding: 0 1.5rem; display: flex; align-items: center; gap: 1rem; height: 52px; position: sticky; top: 0; z-index: 50; }
+.header-title { font-size: 15px; font-weight: 500; }
+.header-sub { font-size: 12px; color: #888; }
+.nav { display: flex; gap: 2px; margin-left: auto; }
+.nav-btn { padding: 6px 14px; border-radius: 8px; border: none; background: transparent; color: #666; font-size: 13px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+.nav-btn.active { background: #f0f0ef; color: #1a1a1a; font-weight: 500; }
+.nav-btn:hover:not(.active) { background: #f5f5f3; }
+.nav-btn.nav-pending { background: #fff8e1; color: #f57c00; font-weight: 600; }
+.nav-btn.active.nav-pending { background: #fff8e1; color: #f57c00; font-weight: 700; }
+.content { flex: 1; padding: 1.5rem; max-width: 900px; margin: 0 auto; width: 100%; }
+.section { display: none; }
+.section.active { display: block; }
+.card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+.card-title { font-size: 13px; font-weight: 500; margin-bottom: 1rem; color: #666; display: flex; align-items: center; gap: 6px; }
+label { font-size: 13px; color: #666; display: block; margin-bottom: 4px; margin-top: 12px; }
+label:first-of-type { margin-top: 0; }
+input, textarea, select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fff; color: #1a1a1a; outline: none; font-family: inherit; transition: border-color 0.15s; }
+input:focus, textarea:focus, select:focus { border-color: #999; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
+textarea { resize: vertical; min-height: 72px; }
+.btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #ddd; background: #fff; color: #1a1a1a; font-size: 13px; cursor: pointer; transition: all 0.15s; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { background: #f5f5f3; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.btn-primary:hover { background: #333; }
+.btn-danger { color: #c0392b; border-color: #f5c6c6; }
+.btn-danger:hover { background: #fdf2f2; }
+.btn-success { color: #27ae60; border-color: #b2dfdb; }
+.btn-success:hover { background: #f0faf4; }
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+.badge-pending { background: #fff8e1; color: #f57c00; }
+.badge-approved { background: #e8f5e9; color: #2e7d32; }
+.badge-rejected { background: #ffebee; color: #c62828; }
+.project-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f0f0f0; flex-wrap: wrap; }
+.project-row:last-child { border-bottom: none; }
+.project-name { font-size: 14px; font-weight: 500; flex: 1; min-width: 120px; }
+.project-meta { font-size: 12px; color: #999; margin-top: 2px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.metric { background: #f8f8f7; border-radius: 8px; padding: 0.875rem; }
+.metric-label { font-size: 11px; color: #999; margin-bottom: 4px; }
+.metric-value { font-size: 20px; font-weight: 500; }
+.metric-value.warn { color: #e67e22; }
+.metric-value.good { color: #27ae60; }
+.divider { border: none; border-top: 1px solid #f0f0f0; margin: 1rem 0; }
+.modal-bg { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: #fff; border-radius: 12px; padding: 1.5rem; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+.modal-title { font-size: 16px; font-weight: 500; margin-bottom: 1rem; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; }
+.tag-wrap { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 8px; min-height: 40px; cursor: text; }
+.tag { background: #f0f0ef; border-radius: 4px; padding: 2px 8px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+.tag-x { cursor: pointer; color: #bbb; line-height: 1; }
+.tag-x:hover { color: #e74c3c; }
+.tag-in { border: none; outline: none; background: transparent; font-size: 14px; color: #1a1a1a; min-width: 80px; flex: 1; font-family: inherit; }
+.history-item { font-size: 13px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; display: flex; gap: 8px; }
+.history-item:last-child { border-bottom: none; }
+.history-date { color: #bbb; min-width: 115px; font-size: 12px; flex-shrink: 0; }
+.progress-bar { height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.progress-fill { height: 100%; border-radius: 3px; background: #1a1a1a; transition: width 0.3s; }
+.progress-fill.warn { background: #e67e22; }
+.progress-fill.danger { background: #e74c3c; }
+.empty { text-align: center; padding: 2.5rem 0; color: #bbb; font-size: 14px; }
+.detail-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 13px; }
+.detail-label { color: #999; white-space: nowrap; }
+.alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 1rem; }
+.alert-info { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+.alert-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+.alert-error { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+.alert-warn { background: #fff8e1; color: #e65100; border: 1px solid #ffe0b2; }
+.exp-row { display: grid; grid-template-columns: 80px 1fr 140px auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px; }
+.section-heading { font-size: 16px; font-weight: 500; }
+table { width: 100%; font-size: 13px; border-collapse: collapse; }
+th { text-align: left; padding: 8px 10px; font-size: 12px; font-weight: 500; color: #999; border-bottom: 1px solid #f0f0f0; }
+td { padding: 10px; border-bottom: 1px solid #f5f5f3; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+.tr { text-align: right; }
+.tfoot td { font-weight: 500; background: #f8f8f7; }
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #eee; border-top-color: #666; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.setup-step { display: flex; gap: 12px; margin-bottom: 1.25rem; }
+.step-num { width: 28px; height: 28px; border-radius: 50%; background: #f0f0ef; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+.step-body { flex: 1; }
+.step-title { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+.step-desc { font-size: 13px; color: #777; line-height: 1.7; }
+code { background: #f5f5f3; padding: 1px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; border: 1px solid #e5e5e5; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title"><i class="ti ti-layout-dashboard"></i> プロジェクト予算管理</div>
+    <div class="header-sub" id="conn-status">未接続 — 設定タブで接続してください</div>
+  </div>
+  <nav class="nav">
+    <button id="nav-apply" class="nav-btn" onclick="showSection('apply')">①PJ新規申請</button>
+    <button id="nav-budget" class="nav-btn" onclick="showSection('budget')">② 予算使用</button>
+    <button id="nav-revision" class="nav-btn" onclick="showSection('revision')">③ 予算変更</button>
+    <button id="nav-pjedit" class="nav-btn" onclick="showSection('pjedit')">④ PJ編集</button>
+    <button id="nav-approve" class="nav-btn" onclick="showSection('approve')">⑤ 承認</button>
+    <button id="nav-summary" class="nav-btn" onclick="showSection('summary')">⑥ 集計管理</button>
+    <button id="nav-history" class="nav-btn" onclick="showSection('history')">⑦ 各種履歴</button>
+    <button id="nav-hqbudget" class="nav-btn" onclick="showSection('hqbudget')">⑧各種設定</button>
+    <button id="nav-admin" class="nav-btn" onclick="showSection('admin')"><i class="ti ti-settings"></i></button>
+  </nav>
+  <div id="header-user" style="margin-left:12px;display:flex;flex-direction:column;align-items:flex-end">
+    <div id="teams-user" style="font-size:12px;color:#666"></div>
+  </div>
+</div>
+
+<div class="content">
+
+  <div id="setup-banner" style="display:none" class="alert alert-warn">
+    <i class="ti ti-alert-triangle"></i>
+    Googleスプレッドシートが未設定です。
+    <button class="btn" style="margin-left:8px;padding:4px 10px;font-size:12px" onclick="showSection('admin')">今すぐ設定する</button>
+  </div>
+
+  <!-- ① 申請 -->
+  <div class="section" id="sec-apply">
+    <div class="section-header">
+      <div class="section-heading">①PJ新規申請</div>
+    </div>
+    <div class="card">
+      <label>プロジェクト名 <span style="color:#e74c3c">*</span></label>
+      <input type="text" id="proj-name" placeholder="例：新製品開発プロジェクト">
+      <label>活動内容 <span style="color:#e74c3c">*</span></label>
+      <textarea id="proj-desc" placeholder="活動の目的・内容を記入してください"></textarea>
+      <label>申請者名 <span style="color:#e74c3c">*</span></label>
+      <input type="text" id="proj-applicant" placeholder="氏名を入力">
+      <label>分類</label>
+      <select id="proj-category"></select>
+      <label>P#</label>
+      <input type="text" id="proj-number" placeholder="P#を入力">
+      <label>メンバー（入力後Enterで追加）</label>
+      <div class="tag-wrap" id="member-wrap" onclick="document.getElementById('member-in').focus()">
+        <input class="tag-in" id="member-in" placeholder="氏名を入力..." onkeydown="addMember(event)">
+      </div>
+      <label>活動期間 <span style="color:#e74c3c">*</span></label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="proj-year" style="width:120px">
+          <option value="">年を選択</option>
+          <option value="2026">2026年</option>
+          <option value="2027">2027年</option>
+          <option value="2028">2028年</option>
+          <option value="2029">2029年</option>
+          <option value="2030">2030年</option>
+        </select>
+        <select id="proj-month-start" style="width:90px">
+          <option value="">開始月</option>
+          <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+          <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+          <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+          <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+        </select>
+        <span style="color:#666;white-space:nowrap">〜</span>
+        <select id="proj-month-end" style="width:90px">
+          <option value="">終了月</option>
+          <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+          <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+          <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+          <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+        </select>
+      </div>
+      <label style="margin-top:16px;font-weight:500;font-size:14px;">支払い予定項目</label>
+      <div id="exp-items"></div>
+      <button class="btn" style="margin-top:8px" onclick="addExpItem()"><i class="ti ti-plus"></i> 項目を追加</button>
+      <hr class="divider">
+      <div class="grid3" style="margin-bottom:1rem">
+        <div class="metric">
+          <div class="metric-label">上期合計</div>
+          <div style="font-size:16px;font-weight:500" id="exp-total-first">¥0</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">下期合計</div>
+          <div style="font-size:16px;font-weight:500" id="exp-total-second">¥0</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">希望予算額合計</div>
+          <div style="font-size:16px;font-weight:500" id="exp-total-all">¥0</div>
+        </div>
+      </div>
+      <!-- hidden inputs for form submission -->
+      <input type="hidden" id="proj-budget-first">
+      <input type="hidden" id="proj-budget-second">
+      <input type="hidden" id="proj-budget">
+      <div id="exp-warn"></div>
+      <div id="apply-msg"></div>
+      <div style="display:flex;justify-content:flex-end;">
+        <button class="btn btn-primary" id="apply-btn" onclick="submitProject()" disabled style="opacity:0.5;cursor:not-allowed"><i class="ti ti-send"></i> 申請する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② (以前の配置) -->
+  <div class="section" id="sec-approve">
+    <div class="section-header">
+      <div class="section-heading">⑤ 承認</div>
+      <button class="btn" onclick="loadProjects()"><i class="ti ti-refresh"></i> 更新</button>
+    </div>
+    <div class="alert alert-info"><i class="ti ti-lock"></i> 承認操作には承認コードが必要です</div>
+    <!-- 検索エリア -->
+    <div class="card" id="approve-search-card">
+      <div class="card-title"><i class="ti ti-search"></i> プロジェクトを検索して選択してください</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.75rem"><label style="margin:0;white-space:nowrap;font-size:13px;color:#666">年度絞り込み：</label><select id="approve-year" onchange="renderApproveSearch()" style="width:110px"><option value="">全年度</option><option value="2026">2026年</option><option value="2027">2027年</option><option value="2028">2028年</option><option value="2029">2029年</option><option value="2030">2030年</option></select></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="approve-search-input" placeholder="プロジェクト名または申請者名で検索..." oninput="renderApproveSearch()" onkeyup="renderApproveSearch()" onchange="renderApproveSearch()" style="flex:1">
+        <button class="btn" onclick="document.getElementById('approve-search-input').value='';renderApproveSearch()"><i class="ti ti-x"></i></button>
+      </div>
+      <div id="approve-search-results" style="margin-top:12px"></div>
+    </div>
+    <!-- 選択後の詳細・操作エリア -->
+    <div id="approve-selected-area" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
+        <button class="btn" onclick="clearApproveSelection()"><i class="ti ti-arrow-left"></i> 検索に戻る</button>
+        <div style="font-size:14px;font-weight:500" id="approve-selected-name"></div>
+      </div>
+      <div id="approve-list"></div>
+    </div>
+  </div>
+
+  <!-- ③ 予算管理 -->
+  <div class="section" id="sec-budget">
+    <div class="section-header">
+      <div class="section-heading">② 予算使用</div>
+      <button class="btn" onclick="loadProjects()"><i class="ti ti-refresh"></i> 更新</button>
+    </div>
+    <!-- 検索エリア -->
+    <div class="card" id="budget-search-card">
+      <div class="card-title"><i class="ti ti-search"></i> プロジェクトを検索して選択してください</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.75rem"><label style="margin:0;white-space:nowrap;font-size:13px;color:#666">年度絞り込み：</label><select id="budget-year" onchange="renderBudgetSearch()" style="width:110px"><option value="">全年度</option><option value="2026">2026年</option><option value="2027">2027年</option><option value="2028">2028年</option><option value="2029">2029年</option><option value="2030">2030年</option></select></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="budget-search-input" placeholder="プロジェクト名または申請者名で検索..." oninput="renderBudgetSearch()" onkeyup="renderBudgetSearch()" onchange="renderBudgetSearch()" style="flex:1">
+        <button class="btn" onclick="document.getElementById('budget-search-input').value='';renderBudgetSearch()"><i class="ti ti-x"></i></button>
+      </div>
+      <div id="budget-search-results" style="margin-top:12px"></div>
+    </div>
+    <!-- 選択後の詳細・操作エリア -->
+    <div id="budget-selected-area" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
+        <button class="btn" onclick="clearBudgetSelection()"><i class="ti ti-arrow-left"></i> 検索に戻る</button>
+        <div style="font-size:14px;font-weight:500" id="budget-selected-name"></div>
+      </div>
+      <div id="budget-list"></div>
+    </div>
+  </div>
+
+  <!-- ④ 予算修正 -->
+  <div class="section" id="sec-revision">
+    <div class="section-header">
+      <div class="section-heading">③ 予算変更</div>
+      <button class="btn" onclick="loadProjects()"><i class="ti ti-refresh"></i> 更新</button>
+    </div>
+    <!-- 検索エリア -->
+    <div class="card" id="revision-search-card">
+      <div class="card-title"><i class="ti ti-search"></i> プロジェクトを検索して選択してください</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.75rem"><label style="margin:0;white-space:nowrap;font-size:13px;color:#666">年度絞り込み：</label><select id="revision-year" onchange="renderRevisionSearch()" style="width:110px"><option value="">全年度</option><option value="2026">2026年</option><option value="2027">2027年</option><option value="2028">2028年</option><option value="2029">2029年</option><option value="2030">2030年</option></select></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="revision-search-input" placeholder="プロジェクト名または申請者名で検索..." oninput="renderRevisionSearch()" onkeyup="renderRevisionSearch()" onchange="renderRevisionSearch()" style="flex:1">
+        <button class="btn" onclick="document.getElementById('revision-search-input').value='';renderRevisionSearch()"><i class="ti ti-x"></i></button>
+      </div>
+      <div id="revision-search-results" style="margin-top:12px"></div>
+    </div>
+    <!-- 選択後の操作エリア -->
+    <div id="revision-selected-area" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
+        <button class="btn" onclick="clearRevisionSelection()"><i class="ti ti-arrow-left"></i> 検索に戻る</button>
+        <div style="font-size:14px;font-weight:500" id="revision-selected-name"></div>
+      </div>
+      <div id="revision-detail"></div>
+    </div>
+  </div>
+
+  <!-- ⑦ 各種履歴 -->
+  <div class="section" id="sec-history">
+    <div class="section-header">
+      <div class="section-heading">⑦ 各種履歴</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="loadProjects()"><i class="ti ti-refresh"></i> 更新</button>
+        <button class="btn" onclick="exportHistoryCSV()"><i class="ti ti-download"></i> 全履歴CSVダウンロード</button>
+      </div>
+    </div>
+    <div class="card" id="history-search-card">
+      <div class="card-title"><i class="ti ti-search"></i> プロジェクトを検索して選択してください</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.75rem"><label style="margin:0;white-space:nowrap;font-size:13px;color:#666">年度絞り込み：</label><select id="history-year" onchange="renderHistorySearch()" style="width:110px"><option value="">全年度</option><option value="2026">2026年</option><option value="2027">2027年</option><option value="2028">2028年</option><option value="2029">2029年</option><option value="2030">2030年</option></select></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="history-search-input" placeholder="プロジェクト名または申請者名で検索..." oninput="renderHistorySearch()" onkeyup="renderHistorySearch()" onchange="renderHistorySearch()" style="flex:1">
+        <button class="btn" onclick="document.getElementById('history-search-input').value='';renderHistorySearch()"><i class="ti ti-x"></i></button>
+      </div>
+      <div id="history-search-results" style="margin-top:12px"></div>
+    </div>
+    <div id="history-selected-area" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
+        <button class="btn" onclick="clearHistorySelection()"><i class="ti ti-arrow-left"></i> 検索に戻る</button>
+        <div style="font-size:14px;font-weight:500" id="history-selected-name"></div>
+      </div>
+      <div id="history-detail"></div>
+    </div>
+  </div>
+
+  <!-- ④ PJ編集 -->
+  <div class="section" id="sec-pjedit">
+    <div class="section-header">
+      <div class="section-heading">④ PJ編集</div>
+      <button class="btn" onclick="loadProjects()"><i class="ti ti-refresh"></i> 更新</button>
+    </div>
+    <div class="card" id="pjedit-search-card">
+      <div class="card-title"><i class="ti ti-search"></i> 編集するプロジェクトを検索して選択してください</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.75rem">
+        <label style="margin:0;white-space:nowrap;font-size:13px;color:#666">年度絞り込み：</label>
+        <select id="pjedit-year" onchange="renderPjEditSearch()" style="width:110px">
+          <option value="">全年度</option>
+          <option value="2026">2026年</option>
+          <option value="2027">2027年</option>
+          <option value="2028">2028年</option>
+          <option value="2029">2029年</option>
+          <option value="2030">2030年</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="pjedit-search-input" placeholder="プロジェクト名または申請者名で検索..." oninput="renderPjEditSearch()" onkeyup="renderPjEditSearch()" onchange="renderPjEditSearch()" style="flex:1">
+        <button class="btn" onclick="document.getElementById('pjedit-search-input').value='';renderPjEditSearch()"><i class="ti ti-x"></i></button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <label style="display:flex;align-items:center;gap:8px;margin:0"><input type="checkbox" id="pjedit-hide-deleted" onchange="togglePjEditHideDeleted(this)" style="width:16px;height:16px"> 削除済みプロジェクトは非表示にする</label>
+      </div>
+      <div id="pjedit-search-results" style="margin-top:12px"></div>
+    </div>
+    <div id="pjedit-selected-area" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
+        <button class="btn" onclick="clearPjEditSelection()"><i class="ti ti-arrow-left"></i> 検索に戻る</button>
+        <div style="font-size:14px;font-weight:500" id="pjedit-selected-name"></div>
+      </div>
+      <div id="pjedit-detail"></div>
+    </div>
+  </div>
+
+  <!-- ⑥ 集計管理 -->
+  <div class="section" id="sec-summary">
+    <div class="section-header">
+      <div class="section-heading">⑥ 集計管理</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="summary-year" onchange="onSummaryYearChange()" style="width:110px">
+          <option value="">年を選択</option>
+          <option value="2026">2026年</option>
+          <option value="2027">2027年</option>
+          <option value="2028">2028年</option>
+          <option value="2029">2029年</option>
+          <option value="2030">2030年</option>
+        </select>
+        <select id="summary-category" onchange="onSummaryCategoryChange()" style="width:140px">
+          <option value="">全分類</option>
+        </select>
+        <div style="display:flex;gap:2px;border:1px solid #ddd;border-radius:8px;overflow:hidden" id="summary-period-tabs">
+          <button class="btn" id="summary-tab-year"   onclick="setSummaryView('year')"   style="border:none;border-radius:0;padding:6px 14px">年次</button>
+          <button class="btn" id="summary-tab-first"  onclick="setSummaryView('first')"  style="border:none;border-left:1px solid #ddd;border-radius:0;padding:6px 14px;opacity:0.35;cursor:not-allowed" disabled>上期</button>
+          <button class="btn" id="summary-tab-second" onclick="setSummaryView('second')" style="border:none;border-left:1px solid #ddd;border-radius:0;padding:6px 14px;opacity:0.35;cursor:not-allowed" disabled>下期</button>
+          <button class="btn" id="summary-tab-all"    onclick="setSummaryView('all')"    style="border:none;border-left:1px solid #ddd;border-radius:0;padding:6px 14px;opacity:0.35;cursor:not-allowed" disabled>通期</button>
+        </div>
+        <button class="btn" onclick="loadProjects()"><i class="ti ti-refresh"></i> 更新</button>
+        <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Excelエクスポート</button>
+      </div>
+    </div>
+    <div class="grid3" style="margin-bottom:1rem" id="summary-metrics">
+      <div class="metric"><div class="metric-label">承認済みプロジェクト数</div><div class="metric-value">—</div></div>
+      <div class="metric"><div class="metric-label">予算総額</div><div class="metric-value">—</div></div>
+      <div class="metric"><div class="metric-label">使用済み総額</div><div class="metric-value">—</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><i class="ti ti-table"></i> 承認済みプロジェクト一覧</div>
+      <div id="summary-table"><div class="empty"><span class="spinner"></span> 読み込み中...</div></div>
+    </div>
+  </div>
+
+  <!-- ⑧ 各種設定 -->
+  <div class="section" id="sec-hqbudget">
+    <div class="section-header">
+      <div class="section-heading">⑧各種設定</div>
+    </div>
+    <div class="card">
+      <div class="card-title"><i class="ti ti-building-bank"></i> 年度ごとの本部予算を登録</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.75rem">
+        <label style="margin:0;white-space:nowrap;font-size:13px;color:#666">年度：</label>
+        <select id="hq-year" style="width:120px">
+          <option value="">年を選択</option>
+          <option value="2026">2026年</option>
+          <option value="2027">2027年</option>
+          <option value="2028">2028年</option>
+          <option value="2029">2029年</option>
+          <option value="2030">2030年</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.75rem">
+        <div style="flex:1">
+          <label>上期本部予算（円）</label>
+          <input type="number" id="hq-first" placeholder="上期額を入力">
+        </div>
+        <div style="flex:1">
+          <label>下期本部予算（円）</label>
+          <input type="number" id="hq-second" placeholder="下期額を入力">
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn" onclick="renderHqBudgetList()">一覧更新</button>
+        <button class="btn btn-primary" onclick="saveHqBudget()">保存</button>
+      </div>
+      <div id="hq-msg" style="margin-top:12px"></div>
+      <hr class="divider">
+      <div id="hq-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><i class="ti ti-list"></i> 分類候補の設定</div>
+      <label>分類候補（1行に1件）</label>
+      <textarea id="category-options" rows="4" placeholder="例: 開発\n営業\n研究" style="width:100%;min-height:100px"></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+        <button class="btn btn-primary" onclick="saveCategoryOptions()">保存</button>
+      </div>
+      <div id="category-options-msg" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><i class="ti ti-mail"></i> 承認依頼メール配信先</div>
+      <div style="font-size:13px;color:#666;margin-bottom:8px">①PJ新規申請・③予算変更申請の際に通知メールを送信します。</div>
+      <div style="background:#f0f4ff;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#444;line-height:1.8">
+        <b>【初回セットアップ手順】</b><br>
+        ① 下の「GASコードをコピー」ボタンでコードをコピー<br>
+        ② Apps Scriptエディタに貼り付けて保存<br>
+        ③ 関数選択を <b>「authorizeMailApp」</b> にして ▶ 実行<br>
+        ④ 承認ダイアログが表示されたら「許可」をクリック<br>
+        ⑤ ウェブアプリを<b>既存のデプロイを更新</b>して再デプロイ<br>
+        ⑥ 下の「テスト送信」でメール到達を確認
+      </div>
+      <label>メールアドレス（1行に1件）</label>
+      <textarea id="approval-emails" rows="5" placeholder="例: approver@example.com&#10;manager@example.com" style="width:100%;min-height:110px;box-sizing:border-box"></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+        <button class="btn" id="test-email-btn" onclick="sendTestEmail()"><i class="ti ti-mail-forward"></i> テスト送信</button>
+        <button class="btn btn-primary" onclick="saveApprovalEmails()"><i class="ti ti-device-floppy"></i> 保存</button>
+      </div>
+      <div id="approval-emails-msg" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- 管理者設定 -->
+  <div class="section" id="sec-admin">
+    <div class="section-header"><div class="section-heading">設定</div></div>
+
+    <div class="card">
+      <div class="card-title"><i class="ti ti-brand-google"></i> Googleスプレッドシート接続設定</div>
+      <div class="setup-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Google Apps Script を作成する</div>
+          <div class="step-desc">
+            Google ドライブで新しいスプレッドシートを作成し、メニューの「拡張機能」→「Apps Script」を開きます。<br>
+            エディタの内容を全て削除し、下のボタンでコピーしたコードを貼り付けます。<br>
+            その後「デプロイ」→「新しいデプロイ」→種類「ウェブアプリ」→アクセスできるユーザー「全員」で公開します。
+          </div>
+          <button class="btn" style="margin-top:8px" onclick="copyGasCode()"><i class="ti ti-copy"></i> スクリプトコードをコピー</button>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">デプロイURLを貼り付ける</div>
+          <div class="step-desc">デプロイ後に表示される「ウェブアプリのURL」を下に貼り付けてください。</div>
+          <input type="text" id="gas-url" placeholder="https://script.google.com/macros/s/..." style="margin-top:8px">
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">接続テスト</div>
+          <div class="step-desc">URLを入力後、接続テストで正常に動作するか確認できます。</div>
+          <button class="btn btn-primary" style="margin-top:8px" onclick="saveAndTest()"><i class="ti ti-plug"></i> 保存して接続テスト</button>
+          <div id="conn-test-msg" style="margin-top:8px"></div>
+        </div>
+      </div>
+          <div style="margin-top:12px">
+            <button class="btn" onclick="showYearDebug()"><i class="ti ti-search"></i> 年抽出デバッグを表示</button>
+            <div id="year-debug" style="margin-top:8px;white-space:pre-wrap;font-family:monospace;display:none;border:1px solid #eee;padding:8px;border-radius:8px;background:#fff"></div>
+            <div style="height:8px"></div>
+            <button class="btn" onclick="showSearchDebug()"><i class="ti ti-search"></i> 検索デバッグを表示</button>
+            <div id="search-debug" style="margin-top:8px;white-space:pre-wrap;font-family:monospace;display:none;border:1px solid #eee;padding:8px;border-radius:8px;background:#fff"></div>
+            <div style="height:8px"></div>
+            <button class="btn btn-primary" onclick="forceLoadReport()"><i class="ti ti-download"></i> 強制ロードと詳細表示</button>
+            <div id="force-load-log" style="margin-top:8px;white-space:pre-wrap;font-family:monospace;display:none;border:1px solid #eee;padding:8px;border-radius:8px;background:#fff"></div>
+            <div style="height:8px"></div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:8px"><input type="checkbox" id="opt-search-all-years" onchange="toggleSearchAllYears(this)" style="width:16px;height:16px"> 検索時は全年度を対象にする（オンで年絞りを無効化）</label>
+          </div>
+    </div>
+
+    
+
+    <div class="card">
+      <div class="card-title"><i class="ti ti-key"></i> 承認コード管理</div>
+      <div class="alert alert-info" style="margin-bottom:1rem">承認コードを変更すると承認者を切り替えられます。承認者本人にのみ共有してください。</div>
+      <label>現在の承認コード（確認用）</label>
+      <input type="password" id="cur-code" placeholder="現在のコードを入力">
+      <label>新しい承認コード（6文字以上）</label>
+      <input type="password" id="new-code" placeholder="新しいコードを入力">
+      <label>確認（再入力）</label>
+      <input type="password" id="conf-code" placeholder="もう一度入力">
+      <hr class="divider">
+      <div id="code-msg"></div>
+      <button class="btn btn-primary" onclick="changeCode()">コードを変更する</button>
+      <p style="font-size:12px;color:#bbb;margin-top:8px">※ 初期コードは <strong>admin1234</strong> です。必ず変更してください。</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- 承認モーダル -->
+<div id="mode-select-modal" class="modal-bg" style="display:none" onclick="if(event.target===this){}">
+  <div class="modal">
+    <div class="modal-title">起動情報を入力してください</div>
+    <div style="margin-bottom:12px;font-size:13px;color:#666">氏名を入力してください。申請者名やプロジェクト検索の初期値として使用されます。</div>
+    <label>氏名 <span style="color:#e74c3c">*</span></label>
+    <input type="text" id="mode-username" placeholder="氏名を入力" autocomplete="name">
+    <div id="mode-admin-area" style="display:none;margin-top:4px">
+      <label style="margin-top:12px">管理者コード <span style="color:#e74c3c">*</span></label>
+      <input type="password" id="mode-admin-code" placeholder="管理者コードを入力" onkeydown="if(event.key==='Enter')selectMode('admin')">
+    </div>
+    <div id="mode-warn" style="margin-top:10px;color:#e74c3c;font-size:13px;min-height:18px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn" onclick="selectMode('general')">一般モードで開く</button>
+      <button class="btn btn-primary" id="mode-admin-btn" onclick="selectMode('admin')">管理者モードで開く</button>
+    </div>
+  </div>
+</div>
+<div id="approve-modal" style="display:none" class="modal-bg" onclick="if(event.target===this)closeModal('approve-modal')">
+  <div class="modal">
+    <div class="modal-title" id="am-title"></div>
+    <div id="am-detail"></div>
+    <hr class="divider">
+    <label>承認者名 <span style="color:#e74c3c">*</span></label>
+    <input type="text" id="am-approver" placeholder="承認者名を入力">
+    <label>承認コード <span style="color:#e74c3c">*</span></label>
+    <input type="password" id="am-code" placeholder="承認コードを入力">
+    <label>コメント（任意）</label>
+    <input type="text" id="am-comment" placeholder="承認・否承認の理由など">
+    <div id="am-msg" style="margin-top:8px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('approve-modal')">キャンセル</button>
+      <button class="btn btn-danger" id="am-reject-btn" onclick="doApprove('rejected')"><i class="ti ti-x"></i> 否承認</button>
+      <button class="btn btn-success" id="am-approve-btn" onclick="doApprove('approved')"><i class="ti ti-check"></i> 承認</button>
+    </div>
+  </div>
+</div>
+
+<!-- 予算変更モーダル -->
+<div id="budget-modal" style="display:none" class="modal-bg" onclick="if(event.target===this)closeModal('budget-modal')">
+  <div class="modal">
+    <div class="modal-title" id="bm-title"></div>
+    <div id="bm-current"></div>
+    <hr class="divider">
+    <label>期</label>
+    <select id="bm-half">
+      <option value="上期">上期（1〜6月）</option>
+      <option value="下期">下期（7〜12月）</option>
+    </select>
+    <select id="bm-type" onchange="toggleBmCode()" style="display:none">
+      <option value="use">使用登録（承認不要）</option>
+    </select>
+    <label>金額（円）</label>
+    <input type="number" id="bm-amount" placeholder="金額を入力">
+    <label>理由・内容</label>
+    <input type="text" id="bm-reason" placeholder="変更理由や使用内容を入力">
+    <div id="bm-approver-area">
+      <label>承認者名 <span style="color:#e74c3c">*</span></label>
+      <input type="text" id="bm-approver" placeholder="承認者名を入力">
+      <label>承認コード <span style="color:#e74c3c">*</span></label>
+      <input type="password" id="bm-code" placeholder="承認コードを入力">
+    </div>
+    <div id="bm-user-area" style="display:none">
+      <label>登録者名 <span style="color:#e74c3c">*</span></label>
+      <input type="text" id="bm-user" placeholder="使用者名を入力">
+    </div>
+    <div id="bm-msg" style="margin-top:8px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('budget-modal')">キャンセル</button>
+      <button class="btn btn-primary" id="bm-submit-btn" onclick="doBudgetChange()">登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 履歴詳細モーダル -->
+<div id="detail-modal" style="display:none" class="modal-bg" onclick="if(event.target===this)closeModal('detail-modal')">
+  <div class="modal" style="width:520px">
+    <div class="modal-title" id="dm-title"></div>
+    <div id="dm-content"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('detail-modal')">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const LS = 'proj_app_cfg_v2';
+let cfg = JSON.parse(localStorage.getItem(LS) || '{}');
+cfg.approvalCode = cfg.approvalCode || 'admin1234';
+cfg.gasUrl = cfg.gasUrl || 'https://script.google.com/macros/s/AKfycbxF-AY5ZRQXCsEyC4qsJu1vokaIjHXOrzsQDm7tFC3HaDEjtQJp5VqWdOLOIcwPgqEcKg/exec';
+if (typeof cfg.searchAllYears === 'undefined') cfg.searchAllYears = false;
+if (typeof cfg.hideDeletedInPjEdit === 'undefined') cfg.hideDeletedInPjEdit = true;
+if (typeof cfg.hqBudgets === 'undefined') cfg.hqBudgets = {};
+if (typeof cfg.categoryOptions === 'undefined') cfg.categoryOptions = [];
+if (typeof cfg.approvalEmails === 'undefined') cfg.approvalEmails = [];
+
+var projects = [];
+let members = [];
+let expCount = 0;
+let currentApproveProjId = null;
+let currentBudgetProjId = null;
+let currentUserName = '';
+
+// DevToolsからも参照できるように初期値を同期
+window.projects = projects;
+
+function saveCfg() { localStorage.setItem(LS, JSON.stringify(cfg)); }
+
+function getCategoryOptions() {
+  return Array.isArray(cfg.categoryOptions)
+    ? cfg.categoryOptions.map(function(v){ return String(v||'').trim(); }).filter(Boolean)
+    : [];
+}
+
+function buildCategoryOptionsHtml(selected) {
+  const opts = getCategoryOptions();
+  const current = String(selected || '').trim();
+  const list = current && opts.indexOf(current) === -1 ? opts.concat([current]) : opts;
+  return '<option value="">分類を選択</option>' + list.map(function(c) {
+    return '<option value="'+esc(c)+'"'+(c === current ? ' selected' : '')+'>'+esc(c)+'</option>';
+  }).join('');
+}
+
+function populateCategorySelects() {
+  ['proj-category','pjedit-category'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    // 現在の選択値を優先し、なければ data-selected 属性にフォールバック
+    const selected = String(el.value || el.dataset.selected || '').trim();
+    el.innerHTML = buildCategoryOptionsHtml(selected);
+    if (selected) el.value = selected;
+  });
+}
+
+function renderCategoryOptionSettings() {
+  const textarea = document.getElementById('category-options');
+  if (!textarea) return;
+  textarea.value = getCategoryOptions().join('\n');
+}
+
+function saveCategoryOptions() {
+  const textarea = document.getElementById('category-options');
+  if (!textarea) return;
+  cfg.categoryOptions = textarea.value.split(/\r?\n/).map(function(v){ return String(v||'').trim(); }).filter(Boolean);
+  saveCfg();
+  renderCategoryOptionSettings();
+  populateCategorySelects();
+  showMsg('category-options-msg','success','分類候補を保存しました');
+}
+
+function getApprovalEmails() {
+  return Array.isArray(cfg.approvalEmails)
+    ? cfg.approvalEmails.map(function(v){ return String(v||'').trim(); }).filter(Boolean)
+    : [];
+}
+
+function renderApprovalEmailSettings() {
+  const textarea = document.getElementById('approval-emails');
+  if (!textarea) return;
+  textarea.value = getApprovalEmails().join('\n');
+}
+
+function saveApprovalEmails() {
+  const textarea = document.getElementById('approval-emails');
+  if (!textarea) return;
+  const raw = textarea.value.split(/\r?\n/).map(function(v){ return String(v||'').trim(); }).filter(Boolean);
+  const invalid = raw.filter(function(v){ return v.indexOf('@') < 1; });
+  if (invalid.length > 0) {
+    showMsg('approval-emails-msg','error','無効なメールアドレスがあります: ' + invalid.join(', '));
+    return;
+  }
+  cfg.approvalEmails = raw;
+  saveCfg();
+  renderApprovalEmailSettings();
+  showMsg('approval-emails-msg','success','承認依頼メール配信先を保存しました');
+}
+
+async function sendTestEmail() {
+  const emails = getApprovalEmails();
+  if (emails.length === 0) {
+    showMsg('approval-emails-msg','error','先にメールアドレスを登録・保存してください');
+    return;
+  }
+  const btn = document.getElementById('test-email-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 送信中...'; }
+  try {
+    const result = await gasRequest('testEmail', { emails: emails });
+    if (result && result.emailError) {
+      showMsg('approval-emails-msg','error','送信失敗: ' + result.emailError + '。GASエディタで任意の関数を実行してMailAppスコープを承認してください。');
+    } else {
+      showMsg('approval-emails-msg','success','テストメールを送信しました。受信を確認してください。');
+    }
+  } catch(e) {
+    showMsg('approval-emails-msg','error','エラー: ' + e.message);
+  }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-mail-forward"></i> テスト送信'; }
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// アプリの現在モード: 'general' or 'admin'
+let appMode = null;
+let teamsContext = { enabled: false, team: '', channel: '', user: '' };
+
+function parseTeamsParams() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const team = params.get('teamsTeam') || params.get('team');
+    const channel = params.get('teamsChannel') || params.get('channel');
+    const user = params.get('teamsUser') || params.get('user');
+    if (team) teamsContext.team = team;
+    if (channel) teamsContext.channel = channel;
+    if (user) teamsContext.user = user;
+    // 簡易チェック：チーム名とチャネル名が一致すればTeams起動とみなす
+    if (teamsContext.team === '予算管理テスト用' && teamsContext.channel === 'Test1') {
+      teamsContext.enabled = true;
+    }
+  } catch(e) { console.error('parseTeamsParams error', e); }
+}
+
+function displayTeamsUser() {
+  const el = document.getElementById('teams-user');
+  if (!el) return;
+  if (teamsContext.user) el.textContent = teamsContext.user;
+  else if (teamsContext.enabled) el.textContent = teamsContext.team + ' / ' + teamsContext.channel;
+  else el.textContent = '';
+}
+
+// Teams起動時またはモーダル入力のユーザー名を、フォームの空欄フィールドに自動入力する
+function fillTeamsUserDefaults() {
+  try {
+    const u = teamsContext.user || currentUserName || '';
+    if (!u) return;
+    const ids = ['proj-applicant','bm-user','rev-applicant','pjedit-editor','am-approver','inline-approver'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if ((el.value || '').trim() === '') el.value = u;
+    });
+  } catch(e) { console.error('fillTeamsUserDefaults error', e); }
+}
+
+// モーダルで入力した氏名を①申請者名と②③④検索フィルタの初期値にセットする
+function fillUserNameDefaults(name) {
+  if (!name) return;
+  try {
+    // ① 申請者名（空欄のときのみ）
+    const applicantEl = document.getElementById('proj-applicant');
+    if (applicantEl && (applicantEl.value || '').trim() === '') applicantEl.value = name;
+    // ②③④ 検索フィルタ初期値（自分のプロジェクトを最初から表示）
+    ['budget-search-input', 'revision-search-input', 'pjedit-search-input'].forEach(function(id) {
+      const el = document.getElementById(id);
+      if (el) el.value = name;
+    });
+  } catch(e) { console.error('fillUserNameDefaults error', e); }
+}
+
+function selectMode(mode) {
+  const nameEl  = document.getElementById('mode-username');
+  const warnEl  = document.getElementById('mode-warn');
+  const name    = (nameEl ? nameEl.value : '').trim();
+
+  // 氏名チェック
+  if (!name) {
+    if (warnEl) warnEl.textContent = '氏名を入力してください';
+    if (nameEl) nameEl.focus();
+    return;
+  }
+
+  if (mode === 'admin') {
+    const adminArea = document.getElementById('mode-admin-area');
+    const adminBtn  = document.getElementById('mode-admin-btn');
+    // 初回クリック：管理者コード欄を表示して待機
+    if (adminArea && adminArea.style.display === 'none') {
+      adminArea.style.display = 'block';
+      const codeEl = document.getElementById('mode-admin-code');
+      if (codeEl) { codeEl.value = ''; codeEl.focus(); }
+      if (warnEl) warnEl.textContent = '';
+      if (adminBtn) adminBtn.innerHTML = '<i class="ti ti-lock"></i> 確認・管理者モードで開く';
+      return;
+    }
+    // 二回目クリック：コードを検証
+    const codeEl = document.getElementById('mode-admin-code');
+    const code   = codeEl ? codeEl.value : '';
+    if (!code) {
+      if (warnEl) warnEl.textContent = '管理者コードを入力してください';
+      if (codeEl) codeEl.focus();
+      return;
+    }
+    if (code !== cfg.approvalCode) {
+      if (warnEl) warnEl.textContent = '管理者コードが正しくありません';
+      if (codeEl) { codeEl.value = ''; codeEl.focus(); }
+      return;
+    }
+  }
+
+  // 検証OK：氏名を保存して画面遷移
+  currentUserName = name;
+  try { localStorage.setItem('proj_last_username', name); } catch(e) {}
+  appMode = mode === 'admin' ? 'admin' : 'general';
+  applyMode();
+  displayTeamsUser();
+  fillTeamsUserDefaults();
+  fillUserNameDefaults(name);
+  document.getElementById('mode-select-modal').style.display = 'none';
+  showSection('apply');
+}
+
+function applyMode() {
+  // 一般モードでは承認(②), 履歴(⑤), 集計(⑥), 本部予算(⑧), 設定 を隠す
+  const restricted = ['nav-approve','nav-history','nav-summary','nav-hqbudget','nav-admin'];
+  restricted.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (appMode === 'general') el.style.display = 'none'; else el.style.display = '';
+  });
+}
+
+// showSectionにアクセス制御を追加
+
+// 日付を日本時間のシンプル形式に変換
+function fmtDate(s) {
+  if (!s) return '';
+  const d = new Date(String(s).replace(/\//g,'-'));
+  if (isNaN(d)) return String(s).replace(/(\d{4})\/(\d{1,2})\/(\d{1,2}).*/, '$1/$2/$3');
+  return d.toLocaleString('ja-JP', { timeZone:'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+// 支払予定項目＋予算変更承認履歴から上期/下期の最新予算・使用額・残額を算出
+function calcHalfAmounts(p) {
+  const expenses = p.expenses || [];
+  let firstBudget = 0, secondBudget = 0;
+  expenses.forEach(function(e) {
+    const nm = String(e.name||'');
+    const amt = Number(e.amount)||0;
+    if (nm.startsWith('下期:')) secondBudget += amt;
+    else firstBudget += amt;
+  });
+  // 承認済みの予算変更履歴を加味して最新予算を反映
+  (p.budgetHistory||[]).forEach(function(h) {
+    if (h.type !== 'revision_request' || h.status !== 'approved') return;
+    const isIncrease = String(h.reason||'').indexOf('increase:') === 0;
+    const f = Number(h.amountFirst)  || 0;
+    const s = Number(h.amountSecond) || 0;
+    if (isIncrease) { firstBudget += f; secondBudget += s; }
+    else            { firstBudget = Math.max(0, firstBudget - f); secondBudget = Math.max(0, secondBudget - s); }
+  });
+  // 使用履歴から上期/下期の使用額を集計
+  let firstUsed = 0, secondUsed = 0;
+  (p.budgetHistory||[]).forEach(function(h) {
+    if (h.type !== 'use') return;
+    const r = String(h.reason||'');
+    if (r.startsWith('下期:')) secondUsed += Number(h.amount)||0;
+    else firstUsed += Number(h.amount)||0;
+  });
+  return {
+    firstBudget, secondBudget,
+    firstUsed, secondUsed,
+    firstRemain: firstBudget - firstUsed,
+    secondRemain: secondBudget - secondUsed
+  };
+}
+function escCsv(s) {
+  s = String(s||'');
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) s = '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+
+async function gasRequest(action, data) {
+  if (!cfg.gasUrl) throw new Error('GAS URLが未設定です');
+  const payload = JSON.stringify(data || {});
+  const url = cfg.gasUrl
+    + '?action=' + encodeURIComponent(action)
+    + '&data='   + encodeURIComponent(payload);
+  // GASはリダイレクトを返すため mode:cors + redirect:follow で送信
+  const res = await fetch(url, {
+    method: 'GET',
+    redirect: 'follow',
+    mode: 'cors'
+  });
+  if (!res.ok) throw new Error('HTTPエラー: ' + res.status);
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); }
+  catch(e) { throw new Error('レスポンス解析失敗: ' + text.slice(0, 120)); }
+  if (json && json.error) throw new Error(json.error);
+  return json;
+}
+
+async function loadProjects() {
+  if (!cfg.gasUrl) { projects = []; renderAll(); return; }
+  try {
+    const res = await gasRequest('getProjects');
+    // エラーレスポンスが返ってきた場合は無視
+    if (res && res.projects) {
+      const all = res.projects.slice().reverse();
+      // allProjectsには削除済みも含む（⑦用）
+      window.allProjects = all;
+      // projectsは削除済みを除外（②③④⑤⑥用）
+      projects = all.filter(p => !p.deleted && p.deleted !== 'true');
+      // デバッグしやすいよう window にも同期しておく
+      window.projects = projects;
+        // ナビの承認待ち表示を更新
+        updateApproveNavPending();
+    } else {
+      projects = [];
+      window.allProjects = [];
+      window.projects = projects;
+        updateApproveNavPending();
+    }
+    renderAll();
+  } catch(e) {
+    console.error('loadProjects error:', e);
+    // エラーでもrenderAllを呼んで現状のprojectsで表示
+    renderAll();
+    // conn-statusにエラーを表示
+    const cs = document.getElementById('conn-status');
+    if (cs) cs.textContent = '⚠ 読み込みエラー: ' + e.message.slice(0,50);
+  }
+}
+
+let selectedApproveProjId  = null;
+let selectedBudgetProjId   = null;
+let selectedRevisionProjId = null;
+let selectedHistoryProjId  = null;
+let selectedPjEditProjId   = null;
+
+function getActiveSection() {
+  const active = document.querySelector('.section.active');
+  return active ? active.id.replace('sec-','') : '';
+}
+
+// ユーザーが入力中かどうかチェック（入力中はrenderAllで上書きしない）
+function isUserTyping() {
+  const ids = ['approve-search-input','budget-search-input','revision-search-input','history-search-input','pjedit-search-input'];
+  return ids.some(function(id) {
+    const el = document.getElementById(id);
+    return el && document.activeElement === el && (el.value||'').trim() !== '';
+  });
+}
+
+function renderAll() {
+  // ユーザーが検索ボックスに入力中なら自動再描画をスキップ（入力を上書きしない）
+  if (isUserTyping()) return;
+
+  // 現在アクティブなタブのみ再描画（他タブの検索ボックスを上書きしない）
+  const sec = getActiveSection();
+  if (sec === 'approve')  {
+    if (selectedApproveProjId !== null) renderApproveList();
+    else renderApproveSearch();
+  }
+  if (sec === 'budget')   {
+    if (selectedBudgetProjId  !== null) renderBudgetList();
+    else renderBudgetSearch();
+  }
+  if (sec === 'revision') {
+    if (selectedRevisionProjId !== null) renderRevisionDetail();
+    else renderRevisionSearch();
+  }
+  if (sec === 'history')  {
+    if (selectedHistoryProjId  !== null) renderHistoryDetail();
+    else renderHistorySearch();
+  }
+  if (sec === 'pjedit')   {
+    if (selectedPjEditProjId   !== null) renderPjEditForm();
+    else renderPjEditSearch();
+  }
+  if (sec === 'summary')  renderSummary();
+}
+
+/* ===== ② 承認 検索 ===== */
+function renderApproveSearch() {
+  const inputEl = document.getElementById('approve-search-input');
+  const q = (inputEl ? inputEl.value : '').trim().toLowerCase();
+  const el = document.getElementById('approve-search-results');
+  if (!el) return;
+  if (projects.length === 0) { el.innerHTML = '<div class="empty" style="padding:1rem 0"><span class="spinner"></span> データを読み込んでいます...</div>'; return; }
+
+  const yearSel = document.getElementById('approve-year');
+  const filterYear = yearSel ? yearSel.value : '';
+  const searchAll = cfg && cfg.searchAllYears;
+  // デバッグログ: フィルタ処理の中間確認
+  const preYear = projects.filter(p => true);
+  const afterYear = preYear.filter(p => { return !(filterYear && !searchAll && getProjYear(p) !== filterYear); });
+  const filtered = afterYear.filter(p => {
+    if (!q) return true;
+    const name = String(p.name||'').toLowerCase();
+    const app  = String(p.applicant||'').toLowerCase();
+    const cat  = String(p.category||'').toLowerCase();
+    const num  = String(p.pNumber||'').toLowerCase();
+    const ok = name.includes(q) || app.includes(q) || cat.includes(q) || num.includes(q);
+    return ok;
+  });
+  console.log('approve search debug', {q, filterYear, preYear: preYear.length, afterYear: afterYear.length, filtered: filtered.length});
+
+  // 承認待ち（PJ承認 or 予算変更承認）を上に並べる
+  const hasPendingRevision = p => (p.budgetHistory||[]).some(h => h.type === 'revision_request' && h.status === 'pending');
+  const list = [
+    ...filtered.filter(p => p.status === 'pending'),                           // PJ承認待ち
+    ...filtered.filter(p => p.status !== 'pending' && hasPendingRevision(p)),  // 予算変更承認待ち
+    ...filtered.filter(p => p.status !== 'pending' && !hasPendingRevision(p)), // その他
+  ];
+
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty" style="padding:1rem 0">' + (q ? '「' + esc(q) + '」に一致するプロジェクトがありません' : 'プロジェクトがありません') + '</div>';
+    return;
+  }
+  el.innerHTML = list.map(p => {
+    const pendingRevCount = (p.budgetHistory||[]).filter(h => h.type === 'revision_request' && h.status === 'pending').length;
+    // バッジ：PJステータス + 予算変更承認待ち
+    let badges = '';
+    if (p.status === 'pending') {
+      badges += '<span class="badge badge-pending">PJ承認待ち</span> ';
+    } else if (p.status === 'approved') {
+      badges += '<span class="badge badge-approved">PJ承認済</span> ';
+    } else {
+      badges += '<span class="badge badge-rejected">PJ否承認</span> ';
+    }
+    if (pendingRevCount > 0) {
+      badges += '<span class="badge badge-pending" style="background:#fff3e0;color:#e65100">予算変更承認待ち ' + pendingRevCount + '件</span>';
+    }
+    return '<div class="project-row" style="cursor:pointer' + (pendingRevCount > 0 || p.status === 'pending' ? ';border-left:3px solid #f57c00;padding-left:10px' : '') + '" onclick="selectApproveProject(' + p.id + ')">' +
+      '<div style="flex:1"><div class="project-name">' + esc(p.name) + '</div>' +
+      '<div class="project-meta">申請者: ' + esc(p.applicant) + '｜分類: ' + esc(p.category||'—') + '｜P#: ' + esc(p.pNumber||'—') + '｜上期残: ¥' + calcHalfAmounts(p).firstRemain.toLocaleString() + '｜下期残: ¥' + calcHalfAmounts(p).secondRemain.toLocaleString() + '</div></div>' +
+      '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">' + badges + '</div>' +
+      '<i class="ti ti-chevron-right" style="color:#bbb;margin-left:4px"></i></div>';
+  }).join('');
+}
+
+function selectApproveProject(id) {
+  selectedApproveProjId = id;
+  const p = projects.find(x => x.id == id);
+  if (!p) return;
+  document.getElementById('approve-search-card').style.display = 'none';
+  document.getElementById('approve-selected-area').style.display = 'block';
+  document.getElementById('approve-selected-name').textContent = p.name;
+  renderApproveList();
+}
+
+function clearApproveSelection() {
+  selectedApproveProjId = null;
+  document.getElementById('approve-search-card').style.display = 'block';
+  document.getElementById('approve-selected-area').style.display = 'none';
+  document.getElementById('approve-list').innerHTML = '';
+}
+
+/* ===== ③ 予算管理 検索 ===== */
+function renderBudgetSearch() {
+  const inputEl2 = document.getElementById('budget-search-input');
+  const q = (inputEl2 ? inputEl2.value : '').trim().toLowerCase();
+  const el = document.getElementById('budget-search-results');
+  if (!el) return;
+  if (projects.length === 0) { el.innerHTML = '<div class="empty" style="padding:1rem 0"><span class="spinner"></span> データを読み込んでいます...</div>'; return; }
+  const budgetYearSel = document.getElementById('budget-year');
+  const budgetFilterYear = budgetYearSel ? budgetYearSel.value : '';
+  const searchAll = cfg && cfg.searchAllYears;
+  // debug: log stages
+  const preStatus = projects.filter(p => true);
+  const afterStatus = preStatus.filter(p => p.status === 'approved');
+  const afterYear = afterStatus.filter(p => { return !(budgetFilterYear && !searchAll && getProjYear(p) !== budgetFilterYear); });
+  const list = afterYear.filter(p => {
+    if (!q) return true;
+    const name = String(p.name||'').toLowerCase();
+    const app  = String(p.applicant||'').toLowerCase();
+    return name.includes(q) || app.includes(q);
+  });
+  console.log('budget search debug', {q, budgetFilterYear, preStatus: preStatus.length, afterStatus: afterStatus.length, afterYear: afterYear.length, list: list.length});
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty" style="padding:1rem 0">' + (q ? '「' + esc(q) + '」に一致するプロジェクトがありません' : '承認済みプロジェクトがありません') + '</div>';
+    return;
+  }
+  el.innerHTML = list.map(p => {
+    const cur    = Number(p.currentBudget)||Number(p.budget)||0;
+    const used   = Number(p.usedAmount)||0;
+    const remain = cur - used;
+    const pct    = cur > 0 ? Math.round(used/cur*100) : 0;
+    const halves = calcHalfAmounts(p);
+    return '<div class="project-row" style="cursor:pointer" onclick="selectBudgetProject(' + p.id + ')">' +
+      '<div style="flex:1"><div class="project-name">' + esc(p.name) + '</div>' +
+      '<div class="project-meta">申請者: ' + esc(p.applicant) + '｜上期残: ¥' + halves.firstRemain.toLocaleString() + '｜下期残: ¥' + halves.secondRemain.toLocaleString() + '</div></div>' +
+      '<span class="badge badge-approved">承認済</span>' +
+      '<i class="ti ti-chevron-right" style="color:#bbb"></i></div>';
+  }).join('');
+}
+
+function selectBudgetProject(id) {
+  selectedBudgetProjId = id;
+  const p = projects.find(x => x.id == id);
+  if (!p) return;
+  document.getElementById('budget-search-card').style.display = 'none';
+  document.getElementById('budget-selected-area').style.display = 'block';
+  document.getElementById('budget-selected-name').textContent = p.name;
+  renderBudgetList();
+}
+
+function clearBudgetSelection() {
+  selectedBudgetProjId = null;
+  document.getElementById('budget-search-card').style.display = 'block';
+  document.getElementById('budget-selected-area').style.display = 'none';
+  document.getElementById('budget-list').innerHTML = '';
+}
+
+async function showSection(id) {
+  // 一般モードでのアクセス制御
+  const restrictedTabs = ['approve','history','summary','hqbudget','admin'];
+  if (appMode === 'general' && restrictedTabs.indexOf(id) !== -1) {
+    const mw = document.getElementById('mode-warn');
+    if (mw) mw.textContent = 'この機能は管理者モードのみ利用できます。';
+    return;
+  }
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const sec = document.getElementById('sec-' + id);
+  if (sec) sec.classList.add('active');
+  // navボタンは id="nav-<id>" を探して active を付与
+  const navBtn = document.getElementById('nav-' + id);
+  if (navBtn) navBtn.classList.add('active');
+  else {
+    // fallback: first .nav-btn at appropriate position
+    const map = { apply: 0, approve: 1, budget: 2, revision: 3, history: 4, summary: 5, pjedit: 6, admin: 7 };
+    const idx = map[id];
+    if (typeof idx !== 'undefined') {
+      const btns = document.querySelectorAll('.nav-btn');
+      if (btns[idx]) btns[idx].classList.add('active');
+    }
+  }
+  // フォームの既定値をTeamsユーザーで埋める
+  fillTeamsUserDefaults();
+  // ①申請タブではカテゴリ選択肢を最新化する
+  if (id === 'apply') populateCategorySelects();
+  if (id !== 'apply' && id !== 'admin') await loadProjects();
+}
+
+function addMember(e) {
+  if (e.key !== 'Enter') return;
+  const v = e.target.value.trim();
+  if (!v) return;
+  members.push(v);
+  const tag = document.createElement('div');
+  tag.className = 'tag';
+  tag.dataset.name = v;
+  tag.innerHTML = esc(v) + '<span class="tag-x" onclick="removeMember(this)"> ×</span>';
+  document.getElementById('member-wrap').insertBefore(tag, e.target);
+  e.target.value = '';
+}
+function removeMember(el) {
+  const name = el.parentElement.dataset.name;
+  members = members.filter(m => m !== name);
+  el.parentElement.remove();
+}
+
+function calcExpTotal() {
+  let first = 0, second = 0;
+  document.querySelectorAll('#exp-items .exp-row').forEach(row => {
+    const sel  = row.querySelector('select');
+    const inps = row.querySelectorAll('input');
+    const half = sel ? sel.value : '上期';
+    const a    = parseInt(inps[1].value);
+    if (!isNaN(a) && a > 0) {
+      if (half === '下期') second += a;
+      else first += a;
+    }
+  });
+  const total    = first + second;
+  const warnEl   = document.getElementById('exp-warn');
+  const applyBtn = document.getElementById('apply-btn');
+
+  // 上期/下期/通期の表示更新
+  const elFirst  = document.getElementById('exp-total-first');
+  const elSecond = document.getElementById('exp-total-second');
+  const elAll    = document.getElementById('exp-total-all');
+  if (elFirst)  elFirst.textContent  = '¥' + first.toLocaleString();
+  if (elSecond) elSecond.textContent = '¥' + second.toLocaleString();
+  if (elAll)    elAll.textContent    = '¥' + total.toLocaleString();
+
+  // 予算入力欄（読み取り専用）に自動セット
+  const elBudgetFirst  = document.getElementById('proj-budget-first');
+  const elBudgetSecond = document.getElementById('proj-budget-second');
+  const elBudget       = document.getElementById('proj-budget');
+  if (elBudgetFirst)  elBudgetFirst.value  = first  > 0 ? first  : '';
+  if (elBudgetSecond) elBudgetSecond.value = second > 0 ? second : '';
+  if (elBudget)       elBudget.value       = total  > 0 ? total  : '';
+
+  // 申請ボタン制御（1件以上かつ上期・下期どちらもあればOK）
+  if (total === 0) {
+    if (warnEl)  warnEl.innerHTML = '';
+    if (applyBtn) { applyBtn.disabled = true; applyBtn.style.opacity = '0.5'; applyBtn.style.cursor = 'not-allowed'; }
+  } else {
+    if (warnEl)  warnEl.innerHTML = '';
+    if (applyBtn) { applyBtn.disabled = false; applyBtn.style.opacity = '1'; applyBtn.style.cursor = 'pointer'; }
+  }
+}
+
+function addExpItem() {
+  expCount++;
+  const id = 'exp-' + expCount;
+  const d = document.createElement('div');
+  d.className = 'exp-row';
+  d.id = id;
+  // 直前の項目の上期/下期を引き継ぐ
+  const rows = document.querySelectorAll('#exp-items .exp-row');
+  const lastHalf = rows.length > 0
+    ? rows[rows.length - 1].querySelector('select').value
+    : '上期';
+  const selFirst  = lastHalf === '上期' ? ' selected' : '';
+  const selSecond = lastHalf === '下期' ? ' selected' : '';
+  d.innerHTML =
+    '<select style="width:80px" onchange="calcExpTotal()"><option value="上期"' + selFirst + '>上期</option><option value="下期"' + selSecond + '>下期</option></select>' +
+    '<input type="text" placeholder="項目名（例：会議費）">' +
+    '<input type="number" placeholder="金額（円）" oninput="calcExpTotal()">' +
+    '<button class="btn btn-danger" style="padding:6px 10px" onclick="document.getElementById(\'' + id + '\').remove();calcExpTotal()"><i class="ti ti-trash"></i></button>';
+  document.getElementById('exp-items').appendChild(d);
+}
+
+async function submitProject() {
+  if (!cfg.gasUrl) { showMsg('apply-msg','error','Googleスプレッドシートが未設定です。設定タブで接続設定を行ってください。'); return; }
+  const name = document.getElementById('proj-name').value.trim();
+  const desc = document.getElementById('proj-desc').value.trim();
+  const applicant = document.getElementById('proj-applicant').value.trim();
+  const categoryEl = document.getElementById('proj-category');
+  const category = categoryEl ? String(categoryEl.value || '').trim() : '';
+  const projectNumber = document.getElementById('proj-number').value.trim();
+  const budget      = parseInt(document.getElementById('proj-budget').value);
+  const year        = document.getElementById('proj-year').value.trim();
+  const monthStart  = document.getElementById('proj-month-start').value.trim();
+  const monthEnd    = document.getElementById('proj-month-end').value.trim();
+  const budgetFirst  = parseInt(document.getElementById('proj-budget-first').value) || 0;
+  const budgetSecond = parseInt(document.getElementById('proj-budget-second').value) || 0;
+  const period = year && monthStart && monthEnd ? year + '年' + monthStart + '月〜' + monthEnd + '月' : '';
+  if (!name || !desc || !applicant || isNaN(budget) || budget <= 0) {
+    showMsg('apply-msg','error','プロジェクト名・活動内容・申請者名を入力し、支払予定項目を1件以上追加してください');
+    return;
+  }
+  const expenses = [];
+  document.querySelectorAll('#exp-items .exp-row').forEach(row => {
+    const sel  = row.querySelector('select');
+    const inps = row.querySelectorAll('input');
+    const half = sel ? sel.value : '';
+    const n    = inps[0].value.trim();
+    const a    = parseInt(inps[1].value);
+    if (n && !isNaN(a)) expenses.push({ name: half + ':' + n, amount: a, half });
+  });
+  // 活動期間と支払項目の期の整合性チェック
+  const ms = parseInt(monthStart), me = parseInt(monthEnd);
+  if (ms && me) {
+    const isFirstHalfOnly  = ms >= 1  && me <= 6;   // 1〜6月のみ → 下期NG
+    const isSecondHalfOnly = ms >= 7  && me <= 12;  // 7〜12月のみ → 上期NG
+    if (isFirstHalfOnly) {
+      const hasSecond = expenses.some(e => e.half === '下期');
+      if (hasSecond) {
+        showMsg('apply-msg','error','活動期間が上期（1〜6月）のみのため、支払予定項目に「下期」は登録できません。');
+        return;
+      }
+    }
+    if (isSecondHalfOnly) {
+      const hasFirst = expenses.some(e => e.half === '上期');
+      if (hasFirst) {
+        showMsg('apply-msg','error','活動期間が下期（7〜12月）のみのため、支払予定項目に「上期」は登録できません。');
+        return;
+      }
+    }
+  }
+  // 支払予定項目の合計チェック
+  if (expenses.length > 0) {
+    const expTotal = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    if (expTotal === 0) {
+      showMsg('apply-msg','error','支払予定項目の金額を入力してください。');
+      return;
+    }
+    if (budget > expTotal) {
+      showMsg('apply-msg','error',
+        '支払予定項目の合計（¥' + expTotal.toLocaleString() + '）が希望予算額（¥' + budget.toLocaleString() + '）を超えているため申請できません。');
+      return;
+    }
+  } else {
+    showMsg('apply-msg','error','支払予定項目を1件以上入力してください。');
+    return;
+  }
+  const btn = document.getElementById('apply-btn');
+  document.getElementById('apply-msg').innerHTML = '';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 送信中...';
+  try {
+    const projResult = await gasRequest('addProject', { name, desc, applicant, category, pNumber: projectNumber, members: [...members], budget, expenses, period, budgetFirst, budgetSecond, approvalEmails: getApprovalEmails() });
+    document.getElementById('proj-name').value = '';
+    document.getElementById('proj-desc').value = '';
+    document.getElementById('proj-applicant').value = '';
+    document.getElementById('proj-budget').value = '';
+    document.getElementById('proj-year').value = '';
+    document.getElementById('proj-month-start').value = '';
+    document.getElementById('proj-month-end').value = '';
+    document.getElementById('proj-budget-first').value = '';
+    document.getElementById('proj-budget-second').value = '';
+    document.getElementById('proj-category').value = '';
+    document.getElementById('proj-number').value = '';
+    document.getElementById('exp-total-first').textContent  = '¥0';
+    document.getElementById('exp-total-second').textContent = '¥0';
+    document.getElementById('exp-total-all').textContent    = '¥0';
+    document.getElementById('exp-items').innerHTML = '';
+    document.getElementById('member-wrap').querySelectorAll('.tag').forEach(t => t.remove());
+    members = [];
+    showMsg('apply-msg','success','申請が完了しました！承認者の確認をお待ちください。');
+    if (projResult && projResult.emailError) {
+      document.getElementById('apply-msg').innerHTML += '<div style="margin-top:6px;padding:8px 12px;background:#fff3cd;color:#856404;border-radius:6px;font-size:13px">⚠ 承認依頼メールの送信に失敗しました。GASの再デプロイ・再認証が必要な可能性があります（⑧設定でテスト送信をお試しください）。<br>詳細: ' + projResult.emailError + '</div>';
+    } else {
+      // メール送信に問題がない場合のみ3秒後にメッセージを消す
+      setTimeout(function(){ document.getElementById('apply-msg').innerHTML = ''; }, 3000);
+    }
+  } catch(e) {
+    showMsg('apply-msg','error','エラー: ' + e.message);
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-send"></i> 申請する';
+}
+
+function renderApproveList() {
+  if (selectedApproveProjId === null) return;
+  const el = document.getElementById('approve-list');
+  const p = projects.find(x => x.id == selectedApproveProjId);
+  if (!p) { el.innerHTML = '<div class="empty">プロジェクトが見つかりません</div>'; return; }
+  // 予算修正申請の承認UIを末尾に追加
+  const pendingRevisions = (p.budgetHistory||[]).filter(h => h.type === 'revision_request' && h.status === 'pending');
+
+  // プロジェクト詳細カード
+  const exps = (p.expenses||[]).map(e => esc(e.name) + '（¥' + Number(e.amount).toLocaleString() + '）').join('、');
+  const badge = p.status === 'approved'
+    ? '<span class="badge badge-approved">承認済</span>'
+    : p.status === 'rejected'
+      ? '<span class="badge badge-rejected">否承認</span>'
+      : '<span class="badge badge-pending">承認待ち</span>';
+  const allHist = p.budgetHistory||[];
+  const histHtml = allHist.length === 0 ? '<div style="color:#bbb;font-size:13px;padding:8px 0">履歴はありません</div>' :
+    allHist.slice().reverse().map(h => {
+      let cls, lbl, detail, who;
+      if (h.type === 'revision_request') {
+        const revType = String(h.reason||'').startsWith('increase:') ? 'increase' : 'decrease';
+        lbl  = revType === 'increase' ? '予算増額申請' : '予算減額申請';
+        cls  = revType === 'increase' ? 'badge-approved' : 'badge-rejected';
+        const reason = String(h.reason||'').replace(/^(increase|decrease):/,'');
+        const statusLbl   = h.status === 'approved' ? '✓承認済' : h.status === 'rejected' ? '✗否承認' : '⏳承認待ち';
+        const statusColor = h.status === 'approved' ? '#27ae60' : h.status === 'rejected' ? '#e74c3c' : '#e65100';
+        const before = Number(h.budgetBefore||0).toLocaleString();
+        const after  = Number(h.budgetAfter||0).toLocaleString();
+        who    = h.approver ? '承認者: '+esc(h.approver) : '申請者: '+esc(h.user||'');
+        detail = esc(reason)+' <span style="color:#999">｜¥'+before+' → ¥'+after+'</span>'+
+                 ' <span style="color:'+statusColor+';font-size:11px;font-weight:500"> '+statusLbl+'</span>';
+      } else {
+        cls    = h.type==='increase'?'badge-approved':h.type==='decrease'?'badge-rejected':'badge-pending';
+        lbl    = {increase:'増額',decrease:'減額',use:'使用'}[h.type]||h.type;
+        who    = h.approver ? '承認者: '+esc(h.approver) : h.user ? '登録者: '+esc(h.user) : '';
+        detail = esc(h.reason||'');
+      }
+      return '<div class="history-item"><span class="history-date">'+esc(h.date)+'</span>' +
+        '<span><span class="badge '+cls+'" style="margin-right:6px">'+lbl+' ¥'+Number(h.amount).toLocaleString()+'</span>' +
+        detail+(who?'<span style="color:#bbb"> ／'+who+'</span>':'')+' </span></div>';
+    }).join('');
+
+  let html = '<div class="card">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">' +
+    '<div class="card-title" style="margin-bottom:0"><i class="ti ti-file-description"></i> プロジェクト詳細</div>' +
+    '</div>' +
+    '<div class="detail-grid">' +
+    '<span class="detail-label">ステータス</span><span>' + badge + '</span>' +
+    '<span class="detail-label">申請者</span><span>' + esc(p.applicant) + '</span>' +
+    '<span class="detail-label">分類</span><span>' + esc(p.category||'未設定') + '</span>' +
+    '<span class="detail-label">P#</span><span>' + esc(p.pNumber||'—') + '</span>' +
+    '<span class="detail-label">申請日</span><span>' + fmtDate(p.appliedAt) + '</span>' +
+    '<span class="detail-label">活動内容</span><span>' + esc(p.desc) + '</span>' +
+    '<span class="detail-label">メンバー</span><span>' + esc((p.members||[]).join(', ')||'未設定') + '</span>' +
+    '<span class="detail-label">上期予算</span><span>¥' + calcHalfAmounts(p).firstBudget.toLocaleString() + '</span>' +
+    '<span class="detail-label">下期予算</span><span>¥' + calcHalfAmounts(p).secondBudget.toLocaleString() + '</span>' +
+    (exps ? '<span class="detail-label">支払予定</span><span>' + exps + '</span>' : '') +
+    (p.approvedBy ? '<span class="detail-label">承認者</span><span>' + esc(p.approvedBy) + '（' + esc(p.approvedAt) + '）</span>' : '') +
+    (p.approveComment ? '<span class="detail-label">コメント</span><span>' + esc(p.approveComment) + '</span>' : '') +
+    '</div></div>' +
+    '<div class="card">' +
+    '<div class="card-title"><i class="ti ti-history"></i> 予算・使用履歴</div>' +
+    histHtml +
+    '</div>';
+
+  // 承認操作カード（承認待ちのみ）
+  if (p.status === 'pending') {
+    html += '<div class="card">' +
+      '<div class="card-title"><i class="ti ti-check"></i> PJ承認操作</div>' +
+      '<label>承認者名 <span style="color:#e74c3c">*</span></label>' +
+      '<input type="text" id="inline-approver" placeholder="承認者名を入力">' +
+      '<label>承認コード <span style="color:#e74c3c">*</span></label>' +
+      '<input type="password" id="inline-code" placeholder="承認コードを入力">' +
+      '<label>コメント（任意）</label>' +
+      '<input type="text" id="inline-comment" placeholder="承認・否承認の理由など">' +
+      '<div id="inline-approve-msg" style="margin-top:8px"></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">' +
+      '<button class="btn btn-danger" id="inline-btn-reject" onclick="doInlineApprove(&quot;rejected&quot;)"><i class="ti ti-x"></i> 否承認</button>' +
+      '<button class="btn btn-success" id="inline-btn-approve" onclick="doInlineApprove(&quot;approved&quot;)"><i class="ti ti-check"></i> 承認</button>' +
+      '</div></div>';
+  }
+
+
+  // 予算修正申請の承認カード
+  if (pendingRevisions.length > 0) {
+    pendingRevisions.forEach(function(h, idx) {
+      const revType = String(h.reason||'').startsWith('increase:') ? 'increase' : 'decrease';
+      const lbl = revType === 'increase' ? '増額' : '減額';
+      const firstAmt2  = Number(h.amountFirst)  || 0;
+      const secondAmt2 = Number(h.amountSecond) || 0;
+      const sign2 = revType === 'increase' ? '+¥' : '-¥';
+      html += '<div class="card">' +
+        '<div class="card-title"><i class="ti ti-coin"></i> 予算修正承認（' + lbl + '申請）</div>' +
+        '<div class="detail-grid" style="margin-bottom:0.75rem">' +
+        '<span class="detail-label">申請者</span><span>' + esc(h.user||'') + '</span>' +
+        '<span class="detail-label">申請日</span><span>' + fmtDate(h.date) + '</span>' +
+        '<span class="detail-label">修正種別</span><span>' + lbl + '</span>' +
+        '<span class="detail-label">現在の予算</span><span>¥' + Number(h.budgetBefore||0).toLocaleString() + '</span>' +
+        '<span class="detail-label">修正後の予算</span><span>¥' + Number(h.budgetAfter||0).toLocaleString() + '</span>' +
+        '<span class="detail-label">修正理由</span><span>' + esc(String(h.reason||'').replace(/^(increase|decrease):/,'')) + '</span>' +
+        '</div>' +
+        '<table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:1rem">' +
+        '<thead><tr>' +
+        '<th style="text-align:left;padding:5px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px"></th>' +
+        '<th style="text-align:right;padding:5px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">増減額</th>' +
+        '<th style="text-align:right;padding:5px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">合計増減額</th>' +
+        '</tr></thead><tbody>' +
+        '<tr><td style="padding:5px 8px;border-bottom:1px solid #f5f5f3">上期（1〜6月）</td>' +
+        '<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f5f5f3;color:' + (revType==='increase'?'#27ae60':'#e74c3c') + '">' + (firstAmt2>0?sign2+firstAmt2.toLocaleString():'—') + '</td>' +
+        '<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f5f5f3" rowspan="2" style="vertical-align:middle">' + sign2 + Number(h.amount).toLocaleString() + '</td></tr>' +
+        '<tr><td style="padding:5px 8px">下期（7〜12月）</td>' +
+        '<td style="text-align:right;padding:5px 8px;color:' + (revType==='increase'?'#27ae60':'#e74c3c') + '">' + (secondAmt2>0?sign2+secondAmt2.toLocaleString():'—') + '</td></tr>' +
+        '</tbody></table>' +
+        '<label>承認者名 <span style="color:#e74c3c">*</span></label>' +
+        '<input type="text" id="rev-approver-' + idx + '" placeholder="承認者名を入力">' +
+        '<label>承認コード <span style="color:#e74c3c">*</span></label>' +
+        '<input type="password" id="rev-code-' + idx + '" placeholder="承認コードを入力">' +
+        '<label>コメント（任意）</label>' +
+        '<input type="text" id="rev-comment-' + idx + '" placeholder="コメントを入力">' +
+        '<div id="rev-approve-msg-' + idx + '" style="margin-top:8px"></div>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">' +
+        '<button class="btn btn-danger" onclick="doRevisionApprove(' + h.id + ',' + idx + ',0)"><i class="ti ti-x"></i> 否承認</button>' +
+        '<button class="btn btn-success" onclick="doRevisionApprove(' + h.id + ',' + idx + ',1)"><i class="ti ti-check"></i> 承認</button>' +
+        '</div></div>';
+    });
+  }
+  el.innerHTML = html;
+  try {
+    if (appMode === 'admin') {
+      const u = teamsContext.user || currentUserName || '';
+      if (u) {
+        // PJ承認カードの承認者名
+        const inlineApproverEl = document.getElementById('inline-approver');
+        if (inlineApproverEl && (inlineApproverEl.value || '').trim() === '') inlineApproverEl.value = u;
+        // 予算変更申請承認カード（複数）の承認者名
+        el.querySelectorAll('[id^="rev-approver-"]').forEach(function(inp) {
+          if ((inp.value || '').trim() === '') inp.value = u;
+        });
+      }
+    }
+  } catch(e) {}
+}
+
+function openApproveModal(id) {
+  currentApproveProjId = id;
+  const p = projects.find(x => x.id == id);
+  document.getElementById('am-title').textContent = p.name;
+  const exps = (p.expenses||[]).map(e => e.name + '(¥' + Number(e.amount).toLocaleString() + ')').join('、');
+  document.getElementById('am-detail').innerHTML =
+    '<div class="detail-grid">' +
+    '<span class="detail-label">申請者</span><span>' + esc(p.applicant) + '</span>' +
+    '<span class="detail-label">申請日</span><span>' + fmtDate(p.appliedAt) + '</span>' +
+    '<span class="detail-label">活動内容</span><span>' + esc(p.desc) + '</span>' +
+    '<span class="detail-label">メンバー</span><span>' + esc((p.members||[]).join(', ')||'未設定') + '</span>' +
+    '<span class="detail-label">希望予算</span><span>¥' + Number(p.budget).toLocaleString() + '</span>' +
+    (exps ? '<span class="detail-label">支払予定</span><span>' + esc(exps) + '</span>' : '') +
+    '</div>';
+  document.getElementById('am-code').value = '';
+  document.getElementById('am-approver').value = (appMode === 'admin') ? (teamsContext.user || currentUserName || '') : '';
+  document.getElementById('am-comment').value = '';
+  document.getElementById('am-msg').innerHTML = '';
+  document.getElementById('approve-modal').style.display = 'flex';
+}
+
+async function doInlineApprove(result) {
+  const approver = document.getElementById('inline-approver').value.trim();
+  const code     = document.getElementById('inline-code').value;
+  const comment  = document.getElementById('inline-comment').value.trim();
+  const msgEl    = document.getElementById('inline-approve-msg');
+  const btnApp   = document.getElementById('inline-btn-approve');
+  const btnRej   = document.getElementById('inline-btn-reject');
+  if (!approver) { msgEl.innerHTML = '<div class="alert alert-error">承認者名を入力してください</div>'; return; }
+  if (code !== cfg.approvalCode) { msgEl.innerHTML = '<div class="alert alert-error">承認コードが正しくありません</div>'; return; }
+  // ボタンを無効化して処理中表示
+  if (btnApp) { btnApp.disabled = true; btnApp.style.opacity = '0.5'; }
+  if (btnRej) { btnRej.disabled = true; btnRej.style.opacity = '0.5'; }
+  msgEl.innerHTML = '<div class="alert alert-info"><span class="spinner"></span> 処理中...</div>';
+  try {
+    await gasRequest('updateProjectStatus', { id: selectedApproveProjId, status: result, approvedBy: approver, approveComment: comment });
+    const lbl = result === 'approved' ? '承認' : '否承認';
+    // 成功表示をしてからデータ再取得（再描画でDOMが置き換わる前に表示）
+    msgEl.innerHTML = '<div class="alert alert-success">✓ ' + lbl + 'が完了しました。</div>';
+    if (btnApp) { btnApp.disabled = true; btnApp.style.opacity = '0.3'; btnApp.onclick = null; }
+    if (btnRej) { btnRej.disabled = true; btnRej.style.opacity = '0.3'; btnRej.onclick = null; }
+    // 少し待ってから再描画（メッセージを見せる時間を確保）
+    setTimeout(async function() {
+      await loadProjects();
+    }, 1500);
+  } catch(e) {
+    msgEl.innerHTML = '<div class="alert alert-error">エラー: ' + esc(e.message) + '</div>';
+    if (btnApp) { btnApp.disabled = false; btnApp.style.opacity = '1'; }
+    if (btnRej) { btnRej.disabled = false; btnRej.style.opacity = '1'; }
+  }
+}
+
+async function doRevisionApprove(histId, idx, resultFlag) {
+  const result   = resultFlag === 1 ? 'approved' : 'rejected';
+  const approver = document.getElementById('rev-approver-' + idx).value.trim();
+  const code     = document.getElementById('rev-code-' + idx).value;
+  const comment  = document.getElementById('rev-comment-' + idx).value.trim();
+  const msgEl    = document.getElementById('rev-approve-msg-' + idx);
+  if (!approver) { msgEl.innerHTML = '<div class="alert alert-error">承認者名を入力してください</div>'; return; }
+  if (code !== cfg.approvalCode) { msgEl.innerHTML = '<div class="alert alert-error">承認コードが正しくありません</div>'; return; }
+  msgEl.innerHTML = '<div class="alert alert-info"><span class="spinner"></span> 処理中...</div>';
+  try {
+    await gasRequest('approveRevision', { histId: String(histId), result, approver, comment });
+    await loadProjects();
+    renderApproveList();
+  } catch(e) {
+    msgEl.innerHTML = '<div class="alert alert-error">エラー: ' + esc(e.message) + '</div>';
+  }
+}
+
+async function doApprove(result) {
+  const approver = document.getElementById('am-approver').value.trim();
+  const code = document.getElementById('am-code').value;
+  const comment = document.getElementById('am-comment').value.trim();
+  if (!approver) { document.getElementById('am-msg').innerHTML = '<div class="alert alert-error">承認者名を入力してください</div>'; return; }
+  if (code !== cfg.approvalCode) { document.getElementById('am-msg').innerHTML = '<div class="alert alert-error">承認コードが正しくありません</div>'; return; }
+  const aBtn = document.getElementById('am-approve-btn');
+  const rBtn = document.getElementById('am-reject-btn');
+  aBtn.disabled = rBtn.disabled = true;
+  try {
+    await gasRequest('updateProjectStatus', { id: currentApproveProjId, status: result, approvedBy: approver, approveComment: comment });
+    closeModal('approve-modal');
+    await loadProjects();
+  } catch(e) {
+    document.getElementById('am-msg').innerHTML = '<div class="alert alert-error">エラー: ' + esc(e.message) + '</div>';
+  }
+  aBtn.disabled = rBtn.disabled = false;
+}
+
+function renderBudgetList() {
+  if (selectedBudgetProjId === null) return;
+  const el = document.getElementById('budget-list');
+  const p = projects.find(x => x.id == selectedBudgetProjId);
+  if (!p) { el.innerHTML = '<div class="empty">プロジェクトが見つかりません</div>'; return; }
+  const h2 = calcHalfAmounts(p);
+  const mkPct = (u, b) => b > 0 ? Math.round(u/b*100) : 0;
+  const mkBar = (pct) => { const c = pct>=90?'danger':pct>=70?'warn':''; return '<div class="progress-bar" style="margin-top:4px"><div class="progress-fill '+c+'" style="width:'+Math.min(pct,100)+'%"></div></div>'; };
+  const html = '<div class="card">' +
+    '<div style="font-size:12px;color:#999;margin-bottom:12px">申請者: ' + esc(p.applicant) + '｜承認者: ' + esc(p.approvedBy) + '｜' + fmtDate(p.approvedAt) + '</div>' +
+    '<table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:12px">' +
+    '<thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px"></th><th style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">予算</th><th style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">使用済</th><th style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">残額</th><th style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">使用率</th></tr></thead>' +
+    '<tbody>' +
+    '<tr><td style="padding:6px 8px;border-bottom:1px solid #f5f5f3">上期（1〜6月）</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3">¥'+h2.firstBudget.toLocaleString()+'</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3">¥'+h2.firstUsed.toLocaleString()+'</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3'+(h2.firstRemain<0?';color:#e74c3c':'')+'">¥'+h2.firstRemain.toLocaleString()+'</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3">'+mkPct(h2.firstUsed,h2.firstBudget)+'%</td></tr>' +
+    '<tr><td style="padding:6px 8px;border-bottom:1px solid #f5f5f3">下期（7〜12月）</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3">¥'+h2.secondBudget.toLocaleString()+'</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3">¥'+h2.secondUsed.toLocaleString()+'</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3'+(h2.secondRemain<0?';color:#e74c3c':'')+'">¥'+h2.secondRemain.toLocaleString()+'</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3">'+mkPct(h2.secondUsed,h2.secondBudget)+'%</td></tr>' +
+    '<tr style="font-weight:500;background:#f8f8f7"><td style="padding:6px 8px">合計</td><td style="text-align:right;padding:6px 8px">¥'+(h2.firstBudget+h2.secondBudget).toLocaleString()+'</td><td style="text-align:right;padding:6px 8px">¥'+(h2.firstUsed+h2.secondUsed).toLocaleString()+'</td><td style="text-align:right;padding:6px 8px">¥'+(h2.firstRemain+h2.secondRemain).toLocaleString()+'</td><td style="text-align:right;padding:6px 8px">'+mkPct(h2.firstUsed+h2.secondUsed,h2.firstBudget+h2.secondBudget)+'%</td></tr>' +
+    '</tbody></table>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+    '<button class="btn" onclick="openDetailModal(' + p.id + ')"><i class="ti ti-list"></i> 使用履歴</button>' +
+    '<button class="btn btn-primary" onclick="openBudgetModal(' + p.id + ')"><i class="ti ti-edit"></i> 使用登録</button>' +
+    '</div></div>';
+  el.innerHTML = html;
+}
+
+function openBudgetModal(id) {
+  currentBudgetProjId = id;
+  const p = projects.find(x => x.id == id);
+  const cur = Number(p.currentBudget)||Number(p.budget)||0;
+  const used = Number(p.usedAmount)||0;
+  const hh = calcHalfAmounts(p);
+  document.getElementById('bm-title').textContent = p.name + ' — 使用登録';
+  document.getElementById('bm-current').innerHTML =
+    '<table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:8px">' +
+    '<thead><tr><th style="text-align:left;padding:4px 8px;color:#999;font-size:12px"></th><th style="text-align:right;padding:4px 8px;color:#999;font-size:12px">予算</th><th style="text-align:right;padding:4px 8px;color:#999;font-size:12px">使用済</th><th style="text-align:right;padding:4px 8px;color:#999;font-size:12px">残額</th></tr></thead>' +
+    '<tbody>' +
+    '<tr><td style="padding:4px 8px;border-bottom:1px solid #f0f0f0">上期</td><td style="text-align:right;padding:4px 8px;border-bottom:1px solid #f0f0f0">¥'+hh.firstBudget.toLocaleString()+'</td><td style="text-align:right;padding:4px 8px;border-bottom:1px solid #f0f0f0">¥'+hh.firstUsed.toLocaleString()+'</td><td style="text-align:right;padding:4px 8px;border-bottom:1px solid #f0f0f0'+(hh.firstRemain<0?';color:#e74c3c':'')+'">¥'+hh.firstRemain.toLocaleString()+'</td></tr>' +
+    '<tr><td style="padding:4px 8px">下期</td><td style="text-align:right;padding:4px 8px">¥'+hh.secondBudget.toLocaleString()+'</td><td style="text-align:right;padding:4px 8px">¥'+hh.secondUsed.toLocaleString()+'</td><td style="text-align:right;padding:4px 8px'+(hh.secondRemain<0?';color:#e74c3c':'')+'">¥'+hh.secondRemain.toLocaleString()+'</td></tr>' +
+    '</tbody></table>';
+  document.getElementById('bm-amount').value = '';
+  document.getElementById('bm-reason').value = '';
+  document.getElementById('bm-code').value = '';
+  document.getElementById('bm-approver').value = '';
+  // 登録者名が空ならTeamsユーザーで初期化
+  const bmUserEl = document.getElementById('bm-user');
+  if (bmUserEl && (bmUserEl.value||'').trim() === '') bmUserEl.value = teamsContext.user || '';
+  document.getElementById('bm-msg').innerHTML = '';
+  document.getElementById('bm-type').value = 'use';
+  // 現在月に基づいて上期/下期を初期設定
+  const nowMonth = new Date().getMonth() + 1;
+  document.getElementById('bm-half').value = nowMonth <= 6 ? '上期' : '下期';
+  toggleBmCode();
+  document.getElementById('budget-modal').style.display = 'flex';
+}
+
+function toggleBmCode() {
+  const t = document.getElementById('bm-type').value;
+  document.getElementById('bm-approver-area').style.display = t === 'use' ? 'none' : 'block';
+  document.getElementById('bm-user-area').style.display = t === 'use' ? 'block' : 'none';
+}
+
+function toggleSearchAllYears(el) {
+  cfg.searchAllYears = !!(el && el.checked);
+  saveCfg();
+  renderAll();
+}
+
+function togglePjEditHideDeleted(el) {
+  cfg.hideDeletedInPjEdit = !!(el && el.checked);
+  saveCfg();
+  renderPjEditSearch();
+}
+
+function saveHqBudget() {
+  const yEl = document.getElementById('hq-year');
+  const fEl = document.getElementById('hq-first');
+  const sEl = document.getElementById('hq-second');
+  const msg = document.getElementById('hq-msg');
+  if (!yEl || !fEl || !sEl) return;
+  const year = yEl.value;
+  if (!year) { if (msg) msg.innerHTML = '<div class="alert alert-error">年度を選択してください</div>'; return; }
+  const first = Number(fEl.value) || 0;
+  const second = Number(sEl.value) || 0;
+  cfg.hqBudgets = cfg.hqBudgets || {};
+  cfg.hqBudgets[year] = { first: first, second: second };
+  saveCfg();
+  if (msg) msg.innerHTML = '<div class="alert alert-success">保存しました（' + year + '）</div>';
+  renderHqBudgetList();
+  renderSummary();
+}
+
+function renderHqBudgetList() {
+  const el = document.getElementById('hq-list');
+  if (!el) return;
+  const data = cfg.hqBudgets || {};
+  const years = Object.keys(data).sort();
+  if (years.length === 0) { el.innerHTML = '<div class="empty">本部予算が登録されていません</div>'; return; }
+  const rows = years.map(y => {
+    const d = data[y];
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0">' +
+      '<div>' + y + '年 — 上期: ¥' + Number(d.first).toLocaleString() + '｜下期: ¥' + Number(d.second).toLocaleString() + '</div>' +
+      '<div style="display:flex;gap:8px"><button class="btn" onclick="loadHqToForm(\'' + y + '\')">編集</button>' +
+      '<button class="btn btn-danger" onclick="deleteHqBudget(\'' + y + '\')">削除</button></div></div>';
+  }).join('');
+  el.innerHTML = rows;
+}
+
+function loadHqToForm(year) {
+  const data = cfg.hqBudgets || {};
+  if (!data[year]) return;
+  document.getElementById('hq-year').value = year;
+  document.getElementById('hq-first').value = data[year].first || 0;
+  document.getElementById('hq-second').value = data[year].second || 0;
+}
+
+function deleteHqBudget(year) {
+  if (!cfg.hqBudgets || !cfg.hqBudgets[year]) return;
+  if (!confirm('本部予算（' + year + '）を削除しますか？')) return;
+  delete cfg.hqBudgets[year];
+  saveCfg();
+  renderHqBudgetList();
+  renderSummary();
+}
+
+function updateApproveNavPending() {
+  try {
+    const btn = document.getElementById('nav-approve');
+    if (!btn) return;
+    const all = window.allProjects || [];
+    const hasPending = (all || []).some(p => {
+      if (!p) return false;
+      if (p.status === 'pending') return true;
+      const rev = (p.budgetHistory||[]).some(h => h.type === 'revision_request' && h.status === 'pending');
+      return rev;
+    });
+    if (hasPending) btn.classList.add('nav-pending'); else btn.classList.remove('nav-pending');
+  } catch(e) { console.error('updateApproveNavPending error', e); }
+}
+
+async function doBudgetChange() {
+  const type = document.getElementById('bm-type').value;
+  const amount = parseInt(document.getElementById('bm-amount').value);
+  const reason = document.getElementById('bm-reason').value.trim();
+  if (isNaN(amount)||amount<=0) { document.getElementById('bm-msg').innerHTML = '<div class="alert alert-error">金額を正しく入力してください</div>'; return; }
+  if (!reason) { document.getElementById('bm-msg').innerHTML = '<div class="alert alert-error">理由・内容を入力してください</div>'; return; }
+  let approver = null, user = null;
+  const half = document.getElementById('bm-half') ? document.getElementById('bm-half').value : '上期';
+  if (type === 'use') {
+    user = document.getElementById('bm-user').value.trim();
+    if (!user) { document.getElementById('bm-msg').innerHTML = '<div class="alert alert-error">登録者名を入力してください</div>'; return; }
+    // 上期/下期別の予算オーバーチェック
+    const proj = projects.find(x => x.id == currentBudgetProjId);
+    if (proj) {
+      const hAmts = calcHalfAmounts(proj);
+      const remain = half === '下期' ? hAmts.secondRemain : hAmts.firstRemain;
+      if (amount > remain) {
+        document.getElementById('bm-msg').innerHTML =
+          '<div class="alert alert-error">' + half + 'の予算オーバーです。<br>' + half + '残額: ¥' + remain.toLocaleString() + '｜入力金額: ¥' + amount.toLocaleString() + '</div>';
+        return;
+      }
+    }
+  } else {
+    approver = document.getElementById('bm-approver').value.trim();
+    const code = document.getElementById('bm-code').value;
+    if (!approver) { document.getElementById('bm-msg').innerHTML = '<div class="alert alert-error">承認者名を入力してください</div>'; return; }
+    if (code !== cfg.approvalCode) { document.getElementById('bm-msg').innerHTML = '<div class="alert alert-error">承認コードが正しくありません</div>'; return; }
+  }
+  const btn = document.getElementById('bm-submit-btn');
+  document.getElementById('apply-msg').innerHTML = '';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 送信中...';
+  try {
+    const reasonWithHalf = (type === 'use' ? half + ':' : '') + reason;
+    await gasRequest('addBudgetHistory', { projectId: currentBudgetProjId, type, amount, reason: reasonWithHalf, approver, user });
+    closeModal('budget-modal');
+    await loadProjects();
+    // 選択中のプロジェクトの表示を明示的に更新
+    if (selectedBudgetProjId !== null) renderBudgetList();
+  } catch(e) {
+    document.getElementById('bm-msg').innerHTML = '<div class="alert alert-error">エラー: ' + esc(e.message) + '</div>';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '登録する';
+}
+
+function openDetailModal(id) {
+  const p = projects.find(x => x.id == id);
+  document.getElementById('dm-title').textContent = p.name + ' — 履歴';
+  const hist = p.budgetHistory||[];
+  let html = hist.length === 0 ? '<div class="empty" style="padding:1rem 0">履歴はありません</div>' :
+    hist.slice().reverse().map(h => {
+      // タイプ別にラベル・バッジ・表示内容を切り替え
+      let cls, lbl, detail, who;
+      if (h.type === 'revision_request') {
+        const revType = String(h.reason||'').startsWith('increase:') ? 'increase' : 'decrease';
+        const revLbl  = revType === 'increase' ? '予算増額申請' : '予算減額申請';
+        const reason  = String(h.reason||'').replace(/^(increase|decrease):/,'');
+        const statusLbl = h.status === 'approved' ? '✓承認済'
+                        : h.status === 'rejected' ? '✗否承認'
+                        : '⏳承認待ち';
+        const statusColor = h.status === 'approved' ? '#27ae60'
+                          : h.status === 'rejected' ? '#e74c3c'
+                          : '#e65100';
+        cls  = revType === 'increase' ? 'badge-approved' : 'badge-rejected';
+        lbl  = revLbl;
+        who  = h.approver ? '承認者: '+esc(h.approver) : '申請者: '+esc(h.user||'');
+        const before = Number(h.budgetBefore||0).toLocaleString();
+        const after  = Number(h.budgetAfter||0).toLocaleString();
+        detail = esc(reason) +
+          ' <span style="color:#999">｜¥'+before+' → ¥'+after+'</span>' +
+          ' <span style="color:'+statusColor+';font-size:11px;font-weight:500"> '+statusLbl+'</span>';
+      } else {
+        cls    = h.type==='increase'?'badge-approved':h.type==='decrease'?'badge-rejected':'badge-pending';
+        lbl    = {increase:'増額',decrease:'減額',use:'使用'}[h.type]||h.type;
+        who    = h.approver ? '承認者: '+esc(h.approver) : h.user ? '登録者: '+esc(h.user) : '';
+        detail = esc(h.reason||'');
+      }
+      return '<div class="history-item"><span class="history-date">'+esc(h.date)+'</span>' +
+        '<span><span class="badge '+cls+'" style="margin-right:6px">'+lbl+' ¥'+Number(h.amount).toLocaleString()+'</span>' +
+        detail+(who?'<span style="color:#bbb"> ／'+who+'</span>':'')+' </span></div>';
+    }).join('');
+  document.getElementById('dm-content').innerHTML = html;
+  document.getElementById('detail-modal').style.display = 'flex';
+}
+
+/* ===== ④ 予算修正 ===== */
+function renderRevisionSearch() {
+  const el = document.getElementById('revision-search-results');
+  if (!el) return;
+  if (!cfg.gasUrl) { el.innerHTML = '<div class="empty">Googleスプレッドシートが未設定です</div>'; return; }
+  const q = (document.getElementById('revision-search-input').value || '').trim().toLowerCase();
+  if (projects.length === 0) { el.innerHTML = '<div class="empty" style="padding:1rem 0"><span class="spinner"></span> データを読み込んでいます...</div>'; return; }
+  const revYearSel = document.getElementById('revision-year');
+  const revFilterYear = revYearSel ? revYearSel.value : '';
+  const searchAll = cfg && cfg.searchAllYears;
+  const preStatus = projects.filter(p => true);
+  const afterStatus = preStatus.filter(p => p.status === 'approved');
+  const afterYear = afterStatus.filter(p => { return !(revFilterYear && !searchAll && getProjYear(p) !== revFilterYear); });
+  const list = afterYear.filter(p => {
+    if (!q) return true;
+    const name = String(p.name||'').toLowerCase();
+    const app  = String(p.applicant||'').toLowerCase();
+    return name.includes(q) || app.includes(q);
+  });
+  console.log('revision search debug', {q, revFilterYear, preStatus: preStatus.length, afterStatus: afterStatus.length, afterYear: afterYear.length, list: list.length});
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty" style="padding:1rem 0">' + (q ? '「' + esc(q) + '」に一致する承認済みプロジェクトがありません' : '承認済みプロジェクトがありません') + '</div>';
+    return;
+  }
+  el.innerHTML = list.map(p => {
+    const cur = Number(p.currentBudget)||Number(p.budget)||0;
+    const pendingCount = (p.budgetHistory||[]).filter(h => h.type === 'revision_request' && h.status === 'pending').length;
+    let badges = '<span class="badge badge-approved">承認済</span>';
+    if (pendingCount > 0) {
+      badges += ' <span class="badge badge-pending" style="background:#fff3e0;color:#e65100">予算変更申請中 ' + pendingCount + '件</span>';
+    }
+    const h4 = calcHalfAmounts(p);
+    return '<div class="project-row" style="cursor:pointer' + (pendingCount > 0 ? ';border-left:3px solid #f57c00;padding-left:10px' : '') + '" onclick="selectRevisionProject(' + p.id + ')">' +
+      '<div style="flex:1"><div class="project-name">' + esc(p.name) + '</div>' +
+      '<div class="project-meta">申請者: ' + esc(p.applicant) + '｜上期予算: ¥' + h4.firstBudget.toLocaleString() + '（残¥' + h4.firstRemain.toLocaleString() + '）｜下期予算: ¥' + h4.secondBudget.toLocaleString() + '（残¥' + h4.secondRemain.toLocaleString() + '）</div></div>' +
+      '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">' + badges + '</div>' +
+      '<i class="ti ti-chevron-right" style="color:#bbb;margin-left:4px"></i></div>';
+  }).join('');
+}
+
+function selectRevisionProject(id) {
+  selectedRevisionProjId = id;
+  const p = projects.find(x => x.id == id);
+  if (!p) return;
+  document.getElementById('revision-search-card').style.display = 'none';
+  document.getElementById('revision-selected-area').style.display = 'block';
+  document.getElementById('revision-selected-name').textContent = p.name;
+  renderRevisionDetail();
+}
+
+function clearRevisionSelection() {
+  selectedRevisionProjId = null;
+  document.getElementById('revision-search-card').style.display = 'block';
+  document.getElementById('revision-selected-area').style.display = 'none';
+  document.getElementById('revision-detail').innerHTML = '';
+}
+
+function renderRevisionDetail() {
+  const p = projects.find(x => x.id == selectedRevisionProjId);
+  if (!p) return;
+  const cur  = Number(p.currentBudget)||Number(p.budget)||0;
+  const used = Number(p.usedAmount)||0;
+  const h2   = calcHalfAmounts(p);
+  // 未承認の予算修正申請一覧
+  const pendingRevisions = (p.budgetHistory||[]).filter(h => h.type === 'revision_request' && h.status === 'pending');
+  let pendingHtml = '';
+  if (pendingRevisions.length > 0) {
+    pendingHtml = '<div class="alert alert-warn" style="margin-bottom:1rem"><i class="ti ti-clock"></i> 承認待ちの予算修正申請が ' + pendingRevisions.length + ' 件あります</div>';
+    pendingRevisions.forEach(function(h) {
+      const lbl      = String(h.reason||'').startsWith('increase:') ? '増額' : '減額';
+      const revType4 = String(h.reason||'').startsWith('increase:') ? 'increase' : 'decrease';
+      const sign4    = revType4 === 'increase' ? '+¥' : '-¥';
+      const f4 = Number(h.amountFirst)  || 0;
+      const s4 = Number(h.amountSecond) || 0;
+      pendingHtml += '<div class="card" style="border-color:#ffe0b2">' +
+        '<div class="card-title" style="color:#e65100"><i class="ti ti-clock"></i> 承認待ち：' + lbl + '申請</div>' +
+        '<div class="detail-grid" style="margin-bottom:0.75rem">' +
+        '<span class="detail-label">申請者</span><span>' + esc(h.user||'') + '</span>' +
+        '<span class="detail-label">申請日</span><span>' + fmtDate(h.date) + '</span>' +
+        '<span class="detail-label">修正理由</span><span>' + esc(String(h.reason||'').replace(/^(increase|decrease):/,'')) + '</span>' +
+        '</div>' +
+        '<table style="width:100%;font-size:13px;border-collapse:collapse">' +
+        '<thead><tr>' +
+        '<th style="text-align:left;padding:5px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px"></th>' +
+        '<th style="text-align:right;padding:5px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">増減額</th>' +
+        '</tr></thead><tbody>' +
+        '<tr><td style="padding:5px 8px;border-bottom:1px solid #f5f5f3">上期（1〜6月）</td>' +
+        '<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f5f5f3;color:' + (revType4==='increase'?'#27ae60':'#e74c3c') + '">' + (f4>0?sign4+f4.toLocaleString():'—') + '</td></tr>' +
+        '<tr><td style="padding:5px 8px;border-bottom:1px solid #f5f5f3">下期（7〜12月）</td>' +
+        '<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f5f5f3;color:' + (revType4==='increase'?'#27ae60':'#e74c3c') + '">' + (s4>0?sign4+s4.toLocaleString():'—') + '</td></tr>' +
+        '<tr style="font-weight:500;background:#f8f8f7"><td style="padding:5px 8px">合計</td>' +
+        '<td style="text-align:right;padding:5px 8px;color:' + (revType4==='increase'?'#27ae60':'#e74c3c') + '">' + sign4 + Number(h.amount).toLocaleString() + '</td></tr>' +
+        '</tbody></table></div>';
+    });
+  }
+  const html = '<div class="card">' +
+    '<div class="card-title"><i class="ti ti-coin"></i> 現在の予算状況</div>' +
+    '<table style="width:100%;font-size:13px;border-collapse:collapse">' +
+    '<thead><tr>' +
+    '<th style="text-align:left;padding:5px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px"></th>' +
+    '<th style="text-align:right;padding:5px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">予算</th>' +
+    '<th style="text-align:right;padding:5px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">使用済み</th>' +
+    '<th style="text-align:right;padding:5px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">残額</th>' +
+    '</tr></thead><tbody>' +
+    '<tr><td style="padding:5px 8px;border-bottom:1px solid #f5f5f3">上期（1〜6月）</td>' +
+    '<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f5f5f3">¥' + h2.firstBudget.toLocaleString() + '</td>' +
+    '<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f5f5f3">¥' + h2.firstUsed.toLocaleString() + '</td>' +
+    '<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f5f5f3' + (h2.firstRemain<0?';color:#e74c3c':'') + '">¥' + h2.firstRemain.toLocaleString() + '</td></tr>' +
+    '<tr><td style="padding:5px 8px;border-bottom:1px solid #f5f5f3">下期（7〜12月）</td>' +
+    '<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f5f5f3">¥' + h2.secondBudget.toLocaleString() + '</td>' +
+    '<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f5f5f3">¥' + h2.secondUsed.toLocaleString() + '</td>' +
+    '<td style="text-align:right;padding:5px 8px;border-bottom:1px solid #f5f5f3' + (h2.secondRemain<0?';color:#e74c3c':'') + '">¥' + h2.secondRemain.toLocaleString() + '</td></tr>' +
+    '<tr style="font-weight:500;background:#f8f8f7"><td style="padding:5px 8px">合計</td>' +
+    '<td style="text-align:right;padding:5px 8px">¥' + (h2.firstBudget+h2.secondBudget).toLocaleString() + '</td>' +
+    '<td style="text-align:right;padding:5px 8px">¥' + (h2.firstUsed+h2.secondUsed).toLocaleString() + '</td>' +
+    '<td style="text-align:right;padding:5px 8px' + ((h2.firstRemain+h2.secondRemain)<0?';color:#e74c3c':'') + '">¥' + (h2.firstRemain+h2.secondRemain).toLocaleString() + '</td></tr>' +
+    '</tbody></table></div>' +
+    pendingHtml +
+    '<div class="card">' +
+    '<div class="card-title"><i class="ti ti-edit"></i> 予算変更申請</div>' +
+    '<label>修正種別 <span style="color:#e74c3c">*</span></label>' +
+    '<select id="rev-type" onchange="onRevTypeChange()">' +
+    '<option value="increase">増額申請</option>' +
+    '<option value="decrease">減額申請</option>' +
+    '</select>' +
+    // ---- 支払予定項目（増額/減額共通） ----
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 6px">' +
+    '<label style="margin:0;font-weight:500">支払予定項目/中止項目 <span style="color:#e74c3c">*</span></label>' +
+    '</div>' +
+    '<div id="rev-exp-items"></div>' +
+    '<button class="btn" style="margin-top:6px;margin-bottom:12px" onclick="addRevExpItem()"><i class="ti ti-plus"></i> 項目を追加</button>' +
+    // ---- 上期/下期/修正後 サマリー ----
+    '<table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:12px">' +
+    '<thead><tr>' +
+    '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px"></th>' +
+    '<th style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">現在の予算</th>' +
+    '<th style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">残額</th>' +
+    '<th style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">増減額</th>' +
+    '<th style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">修正後の予算</th>' +
+    '</tr></thead><tbody>' +
+    '<tr><td style="padding:6px 8px;border-bottom:1px solid #f5f5f3">上期（1〜6月）</td>' +
+    '<td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3">¥' + h2.firstBudget.toLocaleString() + '</td>' +
+    '<td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3' + (h2.firstRemain<0?';color:#e74c3c':'') + '">¥' + h2.firstRemain.toLocaleString() + '</td>' +
+    '<td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3" id="rev-first-diff">—</td>' +
+    '<td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3" id="rev-first-after">—</td></tr>' +
+    '<tr><td style="padding:6px 8px;border-bottom:1px solid #f5f5f3">下期（7〜12月）</td>' +
+    '<td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3">¥' + h2.secondBudget.toLocaleString() + '</td>' +
+    '<td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3' + (h2.secondRemain<0?';color:#e74c3c':'') + '">¥' + h2.secondRemain.toLocaleString() + '</td>' +
+    '<td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3" id="rev-second-diff">—</td>' +
+    '<td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3" id="rev-second-after">—</td></tr>' +
+    '<tr style="font-weight:500;background:#f8f8f7"><td style="padding:6px 8px">合計</td>' +
+    '<td style="text-align:right;padding:6px 8px">¥' + (h2.firstBudget + h2.secondBudget).toLocaleString() + '</td>' +
+    '<td style="text-align:right;padding:6px 8px' + ((h2.firstRemain+h2.secondRemain)<0?';color:#e74c3c':'') + '">¥' + (h2.firstRemain+h2.secondRemain).toLocaleString() + '</td>' +
+    '<td style="text-align:right;padding:6px 8px" id="rev-total-diff">—</td>' +
+    '<td style="text-align:right;padding:6px 8px" id="rev-total-after">—</td></tr>' +
+    '</tbody></table>' +
+    // hidden inputs for submission
+    '<input type="hidden" id="rev-amount" data-cur-budget="' + cur + '" data-first-budget="' + h2.firstBudget + '" data-second-budget="' + h2.secondBudget + '">' +
+    '<input type="hidden" id="rev-amount-first">' +
+    '<input type="hidden" id="rev-amount-second">' +
+    '<label>修正理由 <span style="color:#e74c3c">*</span></label>' +
+    '<textarea id="rev-reason" placeholder="予算を修正する理由を具体的に記入してください"></textarea>' +
+    '<label>申請者名 <span style="color:#e74c3c">*</span></label>' +
+    '<input type="text" id="rev-applicant" placeholder="申請者名を入力">' +
+    '<div id="rev-msg" style="margin-top:8px"></div>' +
+    '<div style="display:flex;justify-content:flex-end;margin-top:1rem">' +
+    '<button class="btn btn-primary" id="rev-submit-btn" onclick="submitRevision()"><i class="ti ti-send"></i> 申請する</button>' +
+    '</div></div>';
+  document.getElementById('revision-detail').innerHTML = html;
+  // 修正申請フォームの申請者名が空ならユーザー名で初期化
+  try {
+    const revUser = teamsContext.user || currentUserName || '';
+    if (revUser) {
+      const revApp = document.getElementById('rev-applicant');
+      if (revApp && (revApp.value||'').trim() === '') revApp.value = revUser;
+    }
+  } catch(e) {}
+}
+
+function onRevTypeChange() {
+  // 種別変更時はテーブルをリセット
+  calcRevExpTotal();
+}
+
+let revExpCount = 0;
+function addRevExpItem() {
+  revExpCount++;
+  const id = 'rev-exp-' + revExpCount;
+  const rows = document.querySelectorAll('#rev-exp-items .exp-row');
+  const lastHalf = rows.length > 0 ? rows[rows.length-1].querySelector('select').value : '上期';
+  const selF = lastHalf === '上期' ? ' selected' : '';
+  const selS = lastHalf === '下期' ? ' selected' : '';
+  const d = document.createElement('div');
+  d.className = 'exp-row';
+  d.id = id;
+  d.innerHTML =
+    '<select style="width:80px" onchange="calcRevExpTotal()"><option value="上期"' + selF + '>上期</option><option value="下期"' + selS + '>下期</option></select>' +
+    '<input type="text" placeholder="項目名">' +
+    '<input type="number" placeholder="金額（円）" oninput="calcRevExpTotal()">' +
+    '<button class="btn btn-danger" style="padding:6px 10px" onclick="document.getElementById(\'' + id + '\').remove();calcRevExpTotal()"><i class="ti ti-trash"></i></button>';
+  document.getElementById('rev-exp-items').appendChild(d);
+}
+
+function calcRevExpTotal() {
+  const type = (document.getElementById('rev-type') || {}).value || 'increase';
+  const sign = type === 'increase' ? 1 : -1;
+  let firstAmt = 0, secondAmt = 0;
+  document.querySelectorAll('#rev-exp-items .exp-row').forEach(row => {
+    const sel = row.querySelector('select');
+    const half = sel ? sel.value : '上期';
+    const a = parseInt(row.querySelectorAll('input')[1].value);
+    if (!isNaN(a) && a > 0) {
+      if (half === '下期') secondAmt += a;
+      else firstAmt += a;
+    }
+  });
+  const totalAmt = firstAmt + secondAmt;
+  // hidden inputに保存
+  const amtEl = document.getElementById('rev-amount');
+  const amtFirst  = document.getElementById('rev-amount-first');
+  const amtSecond = document.getElementById('rev-amount-second');
+  if (amtEl)     amtEl.value     = totalAmt;
+  if (amtFirst)  amtFirst.value  = firstAmt;
+  if (amtSecond) amtSecond.value = secondAmt;
+  // summaryテーブル更新
+  const firstBudget  = Number((amtEl||{}).dataset&&amtEl.dataset.firstBudget)  || 0;
+  const secondBudget = Number((amtEl||{}).dataset&&amtEl.dataset.secondBudget) || 0;
+  const fDiff  = document.getElementById('rev-first-diff');
+  const fAfter = document.getElementById('rev-first-after');
+  const sDiff  = document.getElementById('rev-second-diff');
+  const sAfter = document.getElementById('rev-second-after');
+  const tDiff  = document.getElementById('rev-total-diff');
+  const tAfter = document.getElementById('rev-total-after');
+  const color = sign > 0 ? '#27ae60' : '#e74c3c';
+  const prefix = sign > 0 ? '+¥' : '-¥';
+  const fmt = (n) => n > 0 ? '<span style="color:' + color + '">' + prefix + n.toLocaleString() + '</span>' : '—';
+  if (fDiff)  fDiff.innerHTML    = fmt(firstAmt);
+  if (fAfter) fAfter.textContent = firstAmt  > 0 ? '¥' + Math.max(0, firstBudget  + firstAmt  * sign).toLocaleString() : '—';
+  if (sDiff)  sDiff.innerHTML    = fmt(secondAmt);
+  if (sAfter) sAfter.textContent = secondAmt > 0 ? '¥' + Math.max(0, secondBudget + secondAmt * sign).toLocaleString() : '—';
+  if (tDiff)  tDiff.innerHTML    = fmt(totalAmt);
+  if (tAfter) tAfter.textContent = totalAmt  > 0 ? '¥' + Math.max(0, (firstBudget+secondBudget) + totalAmt * sign).toLocaleString() : '—';
+}
+
+// calcRevisionAmountはcalcRevExpTotalに統合
+
+async function submitRevision() {
+  const type       = document.getElementById('rev-type').value;
+  const amount     = parseInt(document.getElementById('rev-amount').value) || 0;
+  const amountFirst  = parseInt(document.getElementById('rev-amount-first').value)  || 0;
+  const amountSecond = parseInt(document.getElementById('rev-amount-second').value) || 0;
+  const reason     = document.getElementById('rev-reason').value.trim();
+  const applicant  = document.getElementById('rev-applicant').value.trim();
+  const msgEl      = document.getElementById('rev-msg');
+  // 支払予定項目が必須
+  const revExps = [];
+  document.querySelectorAll('#rev-exp-items .exp-row').forEach(row => {
+    const sel  = row.querySelector('select');
+    const inps = row.querySelectorAll('input');
+    const half = sel ? sel.value : '上期';
+    const n    = inps[0].value.trim();
+    const a    = parseInt(inps[1].value);
+    if (n && !isNaN(a)) revExps.push({ name: half + ':' + n, amount: a });
+  });
+  if (revExps.length === 0) { msgEl.innerHTML = '<div class="alert alert-error">支払予定項目を1件以上入力してください</div>'; return; }
+  if (amount <= 0) { msgEl.innerHTML = '<div class="alert alert-error">支払予定項目の金額を入力してください</div>'; return; }
+  if (!reason)    { msgEl.innerHTML = '<div class="alert alert-error">修正理由を入力してください</div>'; return; }
+  if (!applicant) { msgEl.innerHTML = '<div class="alert alert-error">申請者名を入力してください</div>'; return; }
+  const btn = document.getElementById('rev-submit-btn');
+  document.getElementById('apply-msg').innerHTML = '';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 送信中...';
+  try {
+    const revResult = await gasRequest('addRevisionRequest', {
+      projectId: selectedRevisionProjId, type, amount, amountFirst, amountSecond,
+      reason, applicant, expenses: revExps, approvalEmails: getApprovalEmails()
+    });
+    var revMsg = '<div class="alert alert-success">予算修正の申請が完了しました。承認者の確認をお待ちください。</div>';
+    if (revResult && revResult.emailError) {
+      revMsg += '<div style="margin-top:6px;padding:8px 12px;background:#fff3cd;color:#856404;border-radius:6px;font-size:13px">⚠ 承認依頼メールの送信に失敗しました。GASの再デプロイ・再認証が必要な可能性があります（⑧設定でテスト送信をお試しください）。<br>詳細: ' + esc(revResult.emailError) + '</div>';
+    }
+    msgEl.innerHTML = revMsg;
+    await loadProjects();
+    renderRevisionDetail();
+  } catch(e) {
+    msgEl.innerHTML = '<div class="alert alert-error">エラー: ' + esc(e.message) + '</div>';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-send"></i> 修正申請する';
+}
+
+let summaryView = 'year';
+let summaryYear = '';
+let summaryCategory = '';
+
+function onSummaryYearChange() {
+  const sel = document.getElementById('summary-year');
+  summaryYear = sel ? sel.value : '';
+  // 年が選択されたら上期/下期/通期タブを有効化、未選択なら無効化
+  ['first','second','all'].forEach(function(k) {
+    const btn = document.getElementById('summary-tab-' + k);
+    if (!btn) return;
+    if (summaryYear) {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor  = 'pointer';
+    } else {
+      btn.disabled = true;
+      btn.style.opacity = '0.35';
+      btn.style.cursor  = 'not-allowed';
+      // 年未選択時は年次に戻す
+      if (summaryView !== 'year') summaryView = 'year';
+    }
+  });
+  renderSummary();
+}
+
+function onSummaryCategoryChange() {
+  const sel = document.getElementById('summary-category');
+  summaryCategory = sel ? String(sel.value || '').trim() : '';
+  renderSummary();
+}
+
+function setSummaryView(v) {
+  summaryView = v;
+  renderSummary();
+}
+
+// 活動期間の年を取得するヘルパー（period: "2026年4月〜9月" → "2026"）
+function getProjYear(p) {
+  if (!p) return '';
+  const period = String(p.period || '');
+  // まず period から「YYYY年」を探す
+  let m = period.match(/(\d{4})年/);
+  if (m && m[1]) return String(m[1]);
+  // 次に period 内の任意の4桁年を探す
+  m = period.match(/(\d{4})/);
+  if (m && m[1]) return String(m[1]);
+  // 次に appliedAt を使って年を取得
+  const applied = String(p.appliedAt || '');
+  m = applied.match(/(\d{4})/);
+  if (m && m[1]) return String(m[1]);
+  // 最後に Date として解釈できれば年を返す
+  const d = new Date(applied);
+  if (!isNaN(d.getTime())) return String(d.getFullYear());
+  return '';
+}
+
+// 指定されたセレクタから年を取得して、他の年セレクタに同期する
+function syncYearFrom(sourceId) {
+  const ids = ['approve-year','budget-year','revision-year','history-year','summary-year','pjedit-year','proj-year'];
+  const src = document.getElementById(sourceId);
+  if (!src) return;
+  const val = src.value || '';
+  ids.forEach(function(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.value !== val) el.value = val;
+  });
+  // summaryYear を更新してタブ有効化ロジックを適用
+  const sy = document.getElementById('summary-year');
+  if (sy) {
+    summaryYear = sy.value || '';
+    onSummaryYearChange();
+  }
+  // 再描画
+  renderAll();
+}
+
+// デバッグ: 各プロジェクトから抽出される年を一覧表示
+function showYearDebug() {
+  const list = (window.allProjects || projects || []).map(p => {
+    const id = p && (p.id || '(no id)');
+    const name = p && (p.name || '(no name)');
+    const period = String(p && p.period || '');
+    const applied = String(p && p.appliedAt || '');
+    const extracted = getProjYear(p) || '(未抽出)';
+    return { id, name, period, applied, extracted };
+  });
+  const el = document.getElementById('year-debug');
+  if (!el) return;
+  if (list.length === 0) {
+    el.style.display = 'block';
+    el.textContent = 'プロジェクトがロードされていません。先に「更新」ボタンでデータを読み込んでください。';
+    console.log('year-debug: no projects');
+    return;
+  }
+  const lines = list.map(it => {
+    return ['id:'+it.id, 'name:'+it.name, 'period:'+it.period, 'appliedAt:'+it.applied, 'getProjYear:'+it.extracted].join(' \t ');
+  });
+  el.style.display = 'block';
+  el.textContent = lines.join('\n');
+  console.log('year-debug:\n' + lines.join('\n'));
+}
+
+// 検索デバッグ: 各セクションのフィルタ前後の件数と一致例を表示
+function showSearchDebug() {
+  const sections = ['approve','budget','revision','history','pjedit'];
+  const out = [];
+  const pool = window.allProjects || projects || [];
+  if (!pool || pool.length === 0) {
+    const el0 = document.getElementById('search-debug');
+    if (el0) { el0.style.display = 'block'; el0.textContent = 'プロジェクトがロードされていません。先に「更新」ボタンでデータを読み込んでください。'; }
+    return;
+  }
+  sections.forEach(function(sec) {
+    const yearEl = document.getElementById(sec + '-year');
+    const qEl = document.getElementById((sec==='approve'?'approve-search-input': sec==='budget'?'budget-search-input': sec==='revision'?'revision-search-input': sec==='history'?'history-search-input':'pjedit-search-input'));
+    const filterYear = yearEl ? (yearEl.value || '') : '';
+    const q = qEl ? (qEl.value||'').trim().toLowerCase() : '';
+    const searchAll = cfg && cfg.searchAllYears;
+    // base filter by year
+    const base = pool.filter(p => { if (!filterYear) return true; if (searchAll) return true; return getProjYear(p) === filterYear; });
+    // additional status filter for some sections (mirror render logic)
+    let base2 = base;
+    if (sec === 'budget' || sec === 'revision' || sec === 'history') {
+      base2 = base2.filter(p => p.status === 'approved');
+    }
+    // search matching
+    const matched = base2.filter(p => {
+      if (!q) return true;
+      const name = String(p.name||'').toLowerCase();
+      const app  = String(p.applicant||'').toLowerCase();
+      return name.includes(q) || app.includes(q);
+    });
+    const sample = matched.slice(0,5).map(p => '['+p.id+'] '+(p.name||'(no name)') + ' ('+ (p.applicant||'') +')');
+    out.push('--- セクション: ' + sec + ' ---');
+    out.push('filterYear: "' + filterYear + '" | query: "' + q + '" | searchAll:' + !!searchAll);
+    out.push('pool(before year filter): ' + pool.length + '件');
+    out.push('after year filter: ' + base.length + '件');
+    out.push('after status filter: ' + base2.length + '件');
+    out.push('matched: ' + matched.length + '件');
+    out.push('sample: ' + (sample.length ? '\n  ' + sample.join('\n  ') : 'なし'));
+    out.push('');
+  });
+  const el = document.getElementById('search-debug');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent = out.join('\n');
+  console.log('search-debug:\n' + out.join('\n'));
+}
+
+// 強制的に GAS から getProjects を取得して詳細を表示
+async function forceLoadReport() {
+  const el = document.getElementById('force-load-log');
+  if (el) { el.style.display = 'block'; el.textContent = '取得中...'; }
+  try {
+    const res = await gasRequest('getProjects');
+    const count = res && res.projects ? res.projects.length : 0;
+    window.allProjects = res && res.projects ? res.projects.slice().reverse() : [];
+    projects = (window.allProjects||[]).filter(p => !p.deleted && p.deleted !== 'true');
+    // すぐにコンソールから参照できるように同期
+    window.projects = projects;
+    const sample = (res && res.projects && res.projects.slice(0,5)) || [];
+    const txt = [];
+    txt.push('rawResponseHasProjects: ' + Boolean(res && res.projects));
+    txt.push('rawProjectsLength: ' + (res && res.projects ? res.projects.length : 'null'));
+    txt.push('window.allProjects(after assign): ' + (window.allProjects ? window.allProjects.length : 'null'));
+    txt.push('projects(filtered): ' + projects.length);
+    txt.push('sample (up to 5):');
+    sample.forEach(function(p,i){ txt.push('  ['+i+'] id:'+ (p.id||'') + ' name:'+ (p.name||'') + ' period:' + (p.period||'') + ' appliedAt:' + (p.appliedAt||'')); });
+    if (el) el.textContent = txt.join('\n');
+    console.log('forceLoadReport:', txt.join('\n'));
+    // 再描画
+    renderAll();
+  } catch(e) {
+    if (el) el.textContent = 'エラー: ' + e.message;
+    console.error('forceLoadReport error', e);
+  }
+}
+
+function renderSummary() {
+  // タブのアクティブ状態を反映
+  ['year','first','second','all'].forEach(function(k) {
+    const btn = document.getElementById('summary-tab-' + k);
+    if (btn) {
+      btn.style.background = k === summaryView ? '#1a1a1a' : '';
+      btn.style.color      = k === summaryView ? '#fff'    : '';
+      btn.style.fontWeight = k === summaryView ? '500'     : '';
+    }
+  });
+
+  if (!cfg.gasUrl) { document.getElementById('summary-table').innerHTML = '<div class="empty">Googleスプレッドシートが未設定です</div>'; return; }
+
+  // 全承認済みから年でフィルタ
+  const allApproved = projects.filter(p => p.status === 'approved');
+  let approved = summaryYear
+    ? allApproved.filter(p => getProjYear(p) === summaryYear)
+    : allApproved;
+
+  const categories = [...new Set(getCategoryOptions().concat(approved.map(p => String(p.category || '').trim()).filter(Boolean)))].filter(Boolean).sort();
+  if (summaryCategory) {
+    approved = approved.filter(p => String(p.category || '').trim() === summaryCategory);
+    if (summaryCategory && categories.indexOf(summaryCategory) === -1) {
+      categories.unshift(summaryCategory);
+    }
+  }
+  const categorySel = document.getElementById('summary-category');
+  if (categorySel) {
+    categorySel.innerHTML = '<option value="">全分類</option>' + categories.map(function(c) {
+      return '<option value="'+esc(c)+'"'+(c === summaryCategory ? ' selected' : '')+'>'+esc(c)+'</option>';
+    }).join('');
+    categorySel.value = summaryCategory || '';
+  }
+
+  const yearLabel = summaryYear ? summaryYear + '年' : '全年度';
+
+  if (approved.length === 0) {
+    document.getElementById('summary-metrics').innerHTML =
+      '<div class="metric"><div class="metric-label">対象プロジェクト数</div><div class="metric-value">0件</div></div>' +
+      '<div class="metric"><div class="metric-label">予算総額</div><div class="metric-value">—</div></div>' +
+      '<div class="metric"><div class="metric-label">残額合計</div><div class="metric-value">—</div></div>';
+    document.getElementById('summary-table').innerHTML = '<div class="empty">' + yearLabel + 'の承認済みプロジェクトがありません</div>';
+    return;
+  }
+
+  if (summaryView === 'year') {
+    // 年次: 上期+下期まとめて表示
+    let totalBudget = 0, totalRemain = 0, totalUsed = 0;
+    let rows = approved.map(p => {
+      const hs  = calcHalfAmounts(p);
+      const bud = hs.firstBudget + hs.secondBudget;
+      const rem = hs.firstRemain + hs.secondRemain;
+      const used = hs.firstUsed + hs.secondUsed;
+      const pct  = bud > 0 ? Math.round(used/bud*100) : 0;
+      totalBudget += bud; totalRemain += rem; totalUsed += used;
+      return '<tr><td>'+esc(p.name)+'</td><td>'+esc(p.category||'—')+'</td><td>'+esc(p.pNumber||'—')+'</td><td>'+esc(p.applicant)+'</td>' +
+        '<td class="tr">¥'+hs.firstBudget.toLocaleString()+'</td>' +
+        '<td class="tr">¥'+hs.secondBudget.toLocaleString()+'</td>' +
+        '<td class="tr">¥'+bud.toLocaleString()+'</td>' +
+        '<td class="tr">¥'+used.toLocaleString()+'</td>' +
+        '<td class="tr"'+(rem<0?' style="color:#e74c3c"':'')+'>¥'+rem.toLocaleString()+'</td>' +
+        '<td class="tr">'+pct+'%</td></tr>';
+    }).join('');
+    const totPct = totalBudget > 0 ? Math.round(totalUsed/totalBudget*100) : 0;
+    rows += '<tr class="tfoot"><td colspan="3">合計</td>' +
+      '<td class="tr">—</td><td class="tr">—</td>' +
+      '<td class="tr">¥'+totalBudget.toLocaleString()+'</td>' +
+      '<td class="tr">¥'+totalUsed.toLocaleString()+'</td>' +
+      '<td class="tr">¥'+totalRemain.toLocaleString()+'</td>' +
+      '<td class="tr">'+totPct+'%</td></tr>';
+    // A〜F を計算して表示
+    const hq = (cfg.hqBudgets && cfg.hqBudgets[summaryYear]) || { first:0, second:0 };
+    const A = Number(hq.first||0) + Number(hq.second||0); // 本部予算
+    const B = Number(totalBudget || 0);                 // 予算総額（PJ合計）
+    const C = A - B;                                   // 未設定予算
+    const D = Number(totalUsed || 0);                  // 使用済み総額
+    const E = B - D;                                   // PJ全体の残額
+    const F = E + C;                                   // 本部予算含めた残額
+    document.getElementById('summary-metrics').innerHTML =
+      '<div class="metric"><div class="metric-label">A 本部予算</div><div class="metric-value">¥'+A.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">B PJ予算合計</div><div class="metric-value">¥'+B.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">C 未設定予算（A−B）</div><div class="metric-value">¥'+C.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">D 使用済み総額</div><div class="metric-value">¥'+D.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">E 全PJの残額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
+      '<div class="metric" style="background:#fff0f3"><div class="metric-label">F 本部全体の残額（E＋C）</div><div class="metric-value">¥'+F.toLocaleString()+'</div></div>';
+    document.getElementById('summary-table').innerHTML =
+      '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th>P#</th><th>申請者</th><th class="tr">上期予算</th><th class="tr">下期予算</th><th class="tr">年次予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th></tr></thead><tbody>'+rows+'</tbody></table>';
+
+  } else if (summaryView === 'all') {
+    // 通期: 上期+下期を行分けして表示
+    let totalFBudget = 0, totalSBudget = 0, totalBudget = 0;
+    let totalFUsed = 0, totalSUsed = 0, totalUsed = 0;
+    let totalFRemain = 0, totalSRemain = 0, totalRemain = 0;
+    let rows = approved.map(p => {
+      const hs = calcHalfAmounts(p);
+      const bud = hs.firstBudget + hs.secondBudget;
+      const used = hs.firstUsed + hs.secondUsed;
+      const rem = hs.firstRemain + hs.secondRemain;
+      totalFBudget += hs.firstBudget; totalSBudget += hs.secondBudget; totalBudget += bud;
+      totalFUsed   += hs.firstUsed;   totalSUsed   += hs.secondUsed;   totalUsed   += used;
+      totalFRemain += hs.firstRemain; totalSRemain += hs.secondRemain; totalRemain += rem;
+      const pctF = hs.firstBudget  > 0 ? Math.round(hs.firstUsed /hs.firstBudget *100) : 0;
+      const pctS = hs.secondBudget > 0 ? Math.round(hs.secondUsed/hs.secondBudget*100) : 0;
+      const pctT = bud > 0 ? Math.round(used/bud*100) : 0;
+      return '<tr><td rowspan="3" style="vertical-align:top;padding-top:8px">'+esc(p.name)+'</td><td rowspan="3" style="vertical-align:top;padding-top:8px">'+esc(p.category||'—')+'</td><td rowspan="3" style="vertical-align:top;padding-top:8px">'+esc(p.pNumber||'—')+'</td><td>上期</td>' +
+        '<td class="tr">¥'+hs.firstBudget.toLocaleString()+'</td><td class="tr">¥'+hs.firstUsed.toLocaleString()+'</td>' +
+        '<td class="tr"'+(hs.firstRemain<0?' style="color:#e74c3c"':'')+'>¥'+hs.firstRemain.toLocaleString()+'</td><td class="tr">'+pctF+'%</td></tr>' +
+        '<tr><td>下期</td>' +
+        '<td class="tr">¥'+hs.secondBudget.toLocaleString()+'</td><td class="tr">¥'+hs.secondUsed.toLocaleString()+'</td>' +
+        '<td class="tr"'+(hs.secondRemain<0?' style="color:#e74c3c"':'')+'>¥'+hs.secondRemain.toLocaleString()+'</td><td class="tr">'+pctS+'%</td></tr>' +
+        '<tr style="background:#f8f8f7"><td style="font-weight:500">通期計</td>' +
+        '<td class="tr" style="font-weight:500">¥'+bud.toLocaleString()+'</td><td class="tr" style="font-weight:500">¥'+used.toLocaleString()+'</td>' +
+        '<td class="tr" style="font-weight:500'+(rem<0?';color:#e74c3c':'')+'">¥'+rem.toLocaleString()+'</td><td class="tr" style="font-weight:500">'+pctT+'%</td></tr>';
+    }).join('');
+    const totPct = totalBudget > 0 ? Math.round(totalUsed/totalBudget*100) : 0;
+    rows += '<tr class="tfoot"><td colspan="3">合計</td>' +
+      '<td class="tr">¥'+totalBudget.toLocaleString()+'</td><td class="tr">¥'+totalUsed.toLocaleString()+'</td>' +
+      '<td class="tr">¥'+totalRemain.toLocaleString()+'</td><td class="tr">'+totPct+'%</td></tr>';
+    // A〜F を計算して表示（通期）
+    const hq = (cfg.hqBudgets && cfg.hqBudgets[summaryYear]) || { first:0, second:0 };
+    const A = Number(hq.first||0) + Number(hq.second||0); // 本部予算
+    const B = Number(totalBudget || 0);                 // 予算総額（PJ合計）
+    const C = A - B;                                   // 未設定予算
+    const D = Number(totalUsed || 0);                  // 使用済み総額
+    const E = B - D;                                   // PJ全体の残額
+    const F = E + C;                                   // 本部予算含めた残額
+    document.getElementById('summary-metrics').innerHTML =
+      '<div class="metric"><div class="metric-label">A 本部予算</div><div class="metric-value">¥'+A.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">B PJ予算合計</div><div class="metric-value">¥'+B.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">C 未設定予算（A−B）</div><div class="metric-value">¥'+C.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">D 使用済み総額</div><div class="metric-value">¥'+D.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">E 全PJの残額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
+      '<div class="metric" style="background:#fff0f3"><div class="metric-label">F 本部全体の残額（E＋C）</div><div class="metric-value">¥'+F.toLocaleString()+'</div></div>';
+    document.getElementById('summary-table').innerHTML =
+      '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th>P#</th><th class="tr">予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th></tr></thead><tbody>'+rows+'</tbody></table>';
+
+  } else {
+    // 上期 or 下期
+    const isFirst = summaryView === 'first';
+    const label   = isFirst ? '上期（1〜6月）' : '下期（7〜12月）';
+    let totalBudget = 0, totalRemain = 0, totalUsed = 0;
+    let rows = approved.map(p => {
+      const hs  = calcHalfAmounts(p);
+      const bud = isFirst ? hs.firstBudget  : hs.secondBudget;
+      const rem = isFirst ? hs.firstRemain  : hs.secondRemain;
+      const used = isFirst ? hs.firstUsed   : hs.secondUsed;
+      const pct  = bud > 0 ? Math.round(used/bud*100) : 0;
+      totalBudget += bud; totalRemain += rem; totalUsed += used;
+      return '<tr><td>'+esc(p.name)+'</td><td>'+esc(p.category||'—')+'</td><td>'+esc(p.pNumber||'—')+'</td>' +
+        '<td class="tr">¥'+bud.toLocaleString()+'</td>' +
+        '<td class="tr">¥'+used.toLocaleString()+'</td>' +
+        '<td class="tr"'+(rem<0?' style="color:#e74c3c"':'')+'>¥'+rem.toLocaleString()+'</td>' +
+        '<td class="tr">'+pct+'%</td></tr>';
+    }).join('');
+    const totPct = totalBudget > 0 ? Math.round(totalUsed/totalBudget*100) : 0;
+    rows += '<tr class="tfoot"><td colspan="3">合計</td>' +
+      '<td class="tr">¥'+totalBudget.toLocaleString()+'</td>' +
+      '<td class="tr">¥'+totalUsed.toLocaleString()+'</td>' +
+      '<td class="tr">¥'+totalRemain.toLocaleString()+'</td>' +
+      '<td class="tr">'+totPct+'%</td></tr>';
+    // A〜F を計算して表示（該当期）
+    const hq = (cfg.hqBudgets && cfg.hqBudgets[summaryYear]) || { first:0, second:0 };
+    const A = isFirst ? Number(hq.first||0) : Number(hq.second||0); // 本部予算（該当期）
+    const B = Number(totalBudget || 0);                            // 予算総額（PJ合計、該当期）
+    const C = A - B;                                               // 未設定予算
+    const D = Number(totalUsed || 0);                              // 使用済み総額
+    const E = B - D;                                               // PJ全体の残額
+    const F = E + C;                                               // 本部予算含めた残額
+    document.getElementById('summary-metrics').innerHTML =
+      '<div class="metric"><div class="metric-label">A 本部予算（'+label+'）</div><div class="metric-value">¥'+A.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">B PJ予算合計</div><div class="metric-value">¥'+B.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">C 未設定予算（A−B）</div><div class="metric-value">¥'+C.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">D 使用済み総額</div><div class="metric-value">¥'+D.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">E 全PJの残額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
+      '<div class="metric" style="background:#fff0f3"><div class="metric-label">F 本部全体の残額（E＋C）</div><div class="metric-value">¥'+F.toLocaleString()+'</div></div>';
+    document.getElementById('summary-table').innerHTML =
+      '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th>P#</th><th class="tr">'+label+'予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+}
+
+/* ===== ⑤ 各種履歴 ===== */
+function renderHistorySearch() {
+  const el = document.getElementById('history-search-results');
+  if (!el) return;
+  if (!cfg.gasUrl) { el.innerHTML = '<div class="empty">Googleスプレッドシートが未設定です</div>'; return; }
+  if (projects.length === 0) { el.innerHTML = '<div class="empty" style="padding:1rem 0"><span class="spinner"></span> データを読み込んでいます...</div>'; return; }
+  const histInput = document.getElementById('history-search-input');
+  const q = (histInput ? histInput.value : '').trim().toLowerCase();
+  const histYearSel = document.getElementById('history-year');
+  const histFilterYear = histYearSel ? histYearSel.value : '';
+  const searchAll = cfg && cfg.searchAllYears;
+  const pre = projects.filter(p => true);
+  const afterYear = pre.filter(p => { return !(histFilterYear && !searchAll && getProjYear(p) !== histFilterYear); });
+  const list = afterYear.filter(p => {
+    if (!q) return true;
+    const name = String(p.name||'').toLowerCase();
+    const app  = String(p.applicant||'').toLowerCase();
+    return name.includes(q) || app.includes(q);
+  });
+  console.log('history search debug', {q, histFilterYear, pre: pre.length, afterYear: afterYear.length, list: list.length});
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty" style="padding:1rem 0">' + (q ? '「'+esc(q)+'」に一致するプロジェクトがありません' : 'プロジェクトがありません') + '</div>';
+    return;
+  }
+  el.innerHTML = list.map(p => {
+    const badge = p.status === 'approved'
+      ? '<span class="badge badge-approved">承認済</span>'
+      : p.status === 'rejected'
+        ? '<span class="badge badge-rejected">否承認</span>'
+        : '<span class="badge badge-pending">承認待ち</span>';
+    const histCount = (p.budgetHistory||[]).length;
+    return '<div class="project-row" style="cursor:pointer" onclick="selectHistoryProject('+p.id+')">' +
+      '<div style="flex:1"><div class="project-name">'+esc(p.name)+'</div>' +
+      '<div class="project-meta">申請者: '+esc(p.applicant)+'｜申請日: '+fmtDate(p.appliedAt)+'｜履歴件数: '+histCount+'件</div></div>' +
+      badge+'<i class="ti ti-chevron-right" style="color:#bbb;margin-left:8px"></i></div>';
+  }).join('');
+}
+
+function selectHistoryProject(id) {
+  selectedHistoryProjId = id;
+  const p = projects.find(x => x.id == id);
+  if (!p) return;
+  document.getElementById('history-search-card').style.display = 'none';
+  document.getElementById('history-selected-area').style.display = 'block';
+  document.getElementById('history-selected-name').textContent = p.name;
+  renderHistoryDetail();
+}
+
+function clearHistorySelection() {
+  selectedHistoryProjId = null;
+  document.getElementById('history-search-card').style.display = 'block';
+  document.getElementById('history-selected-area').style.display = 'none';
+  document.getElementById('history-detail').innerHTML = '';
+}
+
+function renderHistoryDetail() {
+  const p = projects.find(x => x.id == selectedHistoryProjId);
+  if (!p) return;
+  const hist = p.budgetHistory || [];
+
+  // プロジェクト概要
+  const hs = calcHalfAmounts(p);
+  let html = '<div class="card">' +
+    '<div class="card-title"><i class="ti ti-info-circle"></i> プロジェクト概要</div>' +
+    '<div class="detail-grid">' +
+    '<span class="detail-label">申請者</span><span>'+esc(p.applicant)+'</span>' +
+    '<span class="detail-label">申請日</span><span>'+fmtDate(p.appliedAt)+'</span>' +
+    '<span class="detail-label">活動期間</span><span>'+esc(p.period||'—')+'</span>' +
+    '<span class="detail-label">ステータス</span><span>'+(p.status==='approved'?'<span class="badge badge-approved">承認済</span>':p.status==='rejected'?'<span class="badge badge-rejected">否承認</span>':'<span class="badge badge-pending">承認待ち</span>')+'</span>' +
+    '<span class="detail-label">上期予算</span><span>¥'+hs.firstBudget.toLocaleString()+'</span>' +
+    '<span class="detail-label">下期予算</span><span>¥'+hs.secondBudget.toLocaleString()+'</span>' +
+    '<span class="detail-label">上期残額</span><span'+(hs.firstRemain<0?' style="color:#e74c3c"':'')+'>¥'+hs.firstRemain.toLocaleString()+'</span>' +
+    '<span class="detail-label">下期残額</span><span'+(hs.secondRemain<0?' style="color:#e74c3c"':'')+'>¥'+hs.secondRemain.toLocaleString()+'</span>' +
+    '</div></div>';
+
+  // 履歴一覧
+  html += '<div class="card">';
+  html += '<div class="card-title"><i class="ti ti-history"></i> 予算・使用履歴（全'+hist.length+'件）</div>';
+
+  if (hist.length === 0) {
+    html += '<div class="empty" style="padding:1rem 0">履歴はありません</div>';
+  } else {
+    // 時系列順（古い順）で残額を累積計算してから、表示用に逆順にする
+    const initialHs = calcHalfAmounts(p);
+    // 初期予算を expenses から算出（変更前の状態）
+    let runFirst  = 0, runSecond = 0;
+    const expenses = p.expenses || [];
+    expenses.forEach(function(e) {
+      const nm = String(e.name||'');
+      if (nm.startsWith('下期:')) runSecond += Number(e.amount)||0;
+      else runFirst += Number(e.amount)||0;
+    });
+    let runFirstUsed = 0, runSecondUsed = 0;
+
+    // 古い順で処理してスナップショットを記録
+    const snapshots = hist.map(function(h) {
+      const snap = {
+        firstBefore: runFirst, secondBefore: runSecond,
+        firstUsedBefore: runFirstUsed, secondUsedBefore: runSecondUsed
+      };
+      if (h.type === 'revision_request' && h.status === 'approved') {
+        const isInc = String(h.reason||'').indexOf('increase:') === 0;
+        const f = Number(h.amountFirst)||0, s = Number(h.amountSecond)||0;
+        if (isInc) { runFirst += f; runSecond += s; }
+        else { runFirst = Math.max(0, runFirst-f); runSecond = Math.max(0, runSecond-s); }
+      }
+      if (h.type === 'use') {
+        const r = String(h.reason||'');
+        if (r.startsWith('下期:')) runSecondUsed += Number(h.amount)||0;
+        else runFirstUsed += Number(h.amount)||0;
+      }
+      snap.firstAfter = runFirst; snap.secondAfter = runSecond;
+      snap.firstUsedAfter = runFirstUsed; snap.secondUsedAfter = runSecondUsed;
+      snap.firstRemainBefore  = snap.firstBefore  - snap.firstUsedBefore;
+      snap.secondRemainBefore = snap.secondBefore - snap.secondUsedBefore;
+      snap.firstRemainAfter   = snap.firstAfter   - snap.firstUsedAfter;
+      snap.secondRemainAfter  = snap.secondAfter  - snap.secondUsedAfter;
+      return snap;
+    });
+
+    html += hist.slice().reverse().map(function(h, ri) {
+      const idx = hist.length - 1 - ri; // 逆引きインデックス
+      const snap = snapshots[idx];
+      let cls, lbl, detail, who, remainInfo = '';
+      if (h.type === 'revision_request') {
+        const revType = String(h.reason||'').startsWith('increase:') ? 'increase' : 'decrease';
+        const revLbl  = revType === 'increase' ? '予算増額申請' : '予算減額申請';
+        const reason  = String(h.reason||'').replace(/^(increase|decrease):/,'');
+        const statusLbl   = h.status==='approved'?'✓承認済':h.status==='rejected'?'✗否承認':'⏳承認待ち';
+        const statusColor = h.status==='approved'?'#27ae60':h.status==='rejected'?'#e74c3c':'#e65100';
+        const f = Number(h.amountFirst)||0, s = Number(h.amountSecond)||0;
+        const sign = revType==='increase'?'+¥':'-¥';
+        cls = revType==='increase'?'badge-approved':'badge-rejected';
+        lbl = revLbl;
+        who = h.approver?'承認者: '+esc(h.approver):'申請者: '+esc(h.user||'');
+        detail = esc(reason)+
+          (f>0?' <span style="color:#999">上期:'+sign+f.toLocaleString()+'</span>':'')+
+          (s>0?' <span style="color:#999">下期:'+sign+s.toLocaleString()+'</span>':'')+
+          ' <span style="color:'+statusColor+';font-size:11px;font-weight:500"> '+statusLbl+'</span>';
+        if (h.status === 'approved') {
+          remainInfo =
+            '<div style="font-size:12px;color:#999;margin-top:4px;padding-left:2px">' +
+            '上期残: <span style="color:#888">¥'+snap.firstRemainBefore.toLocaleString()+'</span>' +
+            ' → <span style="font-weight:500'+(snap.firstRemainAfter<0?';color:#e74c3c':'')+'">¥'+snap.firstRemainAfter.toLocaleString()+'</span>' +
+            '　下期残: <span style="color:#888">¥'+snap.secondRemainBefore.toLocaleString()+'</span>' +
+            ' → <span style="font-weight:500'+(snap.secondRemainAfter<0?';color:#e74c3c':'')+'">¥'+snap.secondRemainAfter.toLocaleString()+'</span>' +
+            '</div>';
+        }
+      } else {
+        cls = h.type==='increase'?'badge-approved':h.type==='decrease'?'badge-rejected':'badge-pending';
+        lbl = {increase:'増額',decrease:'減額',use:'使用'}[h.type]||h.type;
+        who = h.approver?'承認者: '+esc(h.approver):h.user?'登録者: '+esc(h.user):'';
+        const r = String(h.reason||'');
+        const halfLabel = r.startsWith('下期:')?'[下期] ':r.startsWith('上期:')?'[上期] ':'';
+        detail = halfLabel + esc(r.replace(/^(上期|下期):/,''));
+        if (h.type === 'use') {
+          const isSecond = r.startsWith('下期:');
+          const bef = isSecond ? snap.secondRemainBefore : snap.firstRemainBefore;
+          const aft = isSecond ? snap.secondRemainAfter  : snap.firstRemainAfter;
+          const halfLbl2 = isSecond ? '下期' : '上期';
+          remainInfo =
+            '<div style="font-size:12px;color:#999;margin-top:4px;padding-left:2px">' +
+            halfLbl2 + '残: <span style="color:#888">¥'+bef.toLocaleString()+'</span>' +
+            ' → <span style="font-weight:500'+(aft<0?';color:#e74c3c':'')+'">¥'+aft.toLocaleString()+'</span>' +
+            '</div>';
+        }
+      }
+      return '<div class="history-item" style="flex-direction:column;align-items:flex-start;gap:2px">' +
+        '<div style="display:flex;gap:8px;width:100%;align-items:center">' +
+        '<span class="history-date">'+fmtDate(h.date)+'</span>' +
+        '<span style="flex:1"><span class="badge '+cls+'" style="margin-right:6px">'+lbl+' ¥'+Number(h.amount).toLocaleString()+'</span>' +
+        detail+(who?'<span style="color:#bbb"> ／'+who+'</span>':'')+' </span>' +
+        '</div>' + remainInfo + '</div>';
+    }).join('');
+  }
+  html += '</div>';
+  document.getElementById('history-detail').innerHTML = html;
+}
+
+
+function exportHistoryCSV() {
+  const BOM = '\uFEFF';
+  let csv = BOM + 'プロジェクト名,申請者,活動期間,種別,期,金額,理由,変更前上期残,変更後上期残,変更前下期残,変更後下期残,承認者/登録者,日付,ステータス\n';
+  projects.forEach(function(p) {
+    const hist = p.budgetHistory || [];
+    // 残額スナップショットを計算
+    const expenses = p.expenses || [];
+    let runFirst = 0, runSecond = 0, runFUsed = 0, runSUsed = 0;
+    expenses.forEach(function(e) {
+      const nm = String(e.name||'');
+      if (nm.startsWith('下期:')) runSecond += Number(e.amount)||0;
+      else runFirst += Number(e.amount)||0;
+    });
+    hist.forEach(function(h) {
+      const fRemB = runFirst - runFUsed, sRemB = runSecond - runSUsed;
+      if (h.type === 'revision_request' && h.status === 'approved') {
+        const isInc = String(h.reason||'').indexOf('increase:') === 0;
+        const f = Number(h.amountFirst)||0, s = Number(h.amountSecond)||0;
+        if (isInc) { runFirst += f; runSecond += s; }
+        else { runFirst = Math.max(0,runFirst-f); runSecond = Math.max(0,runSecond-s); }
+      }
+      if (h.type === 'use') {
+        const r = String(h.reason||'');
+        if (r.startsWith('下期:')) runSUsed += Number(h.amount)||0;
+        else runFUsed += Number(h.amount)||0;
+      }
+      const fRemA = runFirst - runFUsed, sRemA = runSecond - runSUsed;
+      const lbl = h.type==='revision_request'?(String(h.reason||'').startsWith('increase:')? '予算増額申請':'予算減額申請'):({increase:'増額',decrease:'減額',use:'使用'}[h.type]||h.type);
+      const r2 = String(h.reason||'');
+      const halfLbl = r2.startsWith('下期:')?'下期':r2.startsWith('上期:')?'上期':'';
+      const reason = r2.replace(/^(increase|decrease|上期|下期):/,'');
+      const who = h.approver||h.user||'';
+      const statusLbl = h.type==='revision_request'?(h.status==='approved'?'承認済':h.status==='rejected'?'否承認':'承認待ち'):'';
+      csv += [
+        escCsv(p.name), escCsv(p.applicant), escCsv(p.period||''),
+        escCsv(lbl), escCsv(halfLbl), Number(h.amount),
+        escCsv(reason), fRemB, fRemA, sRemB, sRemA,
+        escCsv(who), escCsv(h.date), escCsv(statusLbl)
+      ].join(',') + '\n';
+
+    });
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '全予算使用履歴_' + new Date().toLocaleDateString('ja-JP').replace(/\//g,'') + '.csv';
+  a.click();
+}
+
+/* ===== ⑦ PJ編集 ===== */
+function renderPjEditSearch() {
+  const el = document.getElementById('pjedit-search-results');
+  if (!el) return;
+  if (!cfg.gasUrl) { el.innerHTML = '<div class="empty">Googleスプレッドシートが未設定です</div>'; return; }
+  if (projects.length === 0) { el.innerHTML = '<div class="empty" style="padding:1rem 0"><span class="spinner"></span> データを読み込んでいます...</div>'; return; }
+  const q = (document.getElementById('pjedit-search-input').value || '').trim().toLowerCase();
+  const yearSel = document.getElementById('pjedit-year');
+  const filterYear = yearSel ? yearSel.value : '';
+  const searchAll = cfg && cfg.searchAllYears;
+  const allPjs = window.allProjects || projects;
+  let pre = allPjs.filter(p => true);
+  // 削除済みを非表示にする設定が有効なら除外
+  if (cfg && cfg.hideDeletedInPjEdit) {
+    pre = pre.filter(p => !(p.deleted === true || p.deleted === 'true'));
+  }
+  const afterYear = pre.filter(p => { return !(filterYear && !searchAll && getProjYear(p) !== filterYear); });
+  const list = afterYear.filter(p => {
+    if (!q) return true;
+    const name = String(p.name||'').toLowerCase();
+    const app  = String(p.applicant||'').toLowerCase();
+    const cat  = String(p.category||'').toLowerCase();
+    const num  = String(p.pNumber||'').toLowerCase();
+    return name.includes(q) || app.includes(q) || cat.includes(q) || num.includes(q);
+  });
+  console.log('pjedit search debug', {q, filterYear, pre: pre.length, afterYear: afterYear.length, list: list.length});
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty" style="padding:1rem 0">' + (q ? '「'+esc(q)+'」に一致するプロジェクトがありません' : 'プロジェクトがありません') + '</div>';
+    return;
+  }
+  el.innerHTML = list.map(p => {
+    const isDeleted = p.deleted === true || p.deleted === 'true';
+    // 削除済みバッジ（専用スタイル：グレー）
+    const deletedBadge = isDeleted
+      ? '<span class="badge" style="background:#e0e0e0;color:#555;margin-right:4px"><i class="ti ti-trash" style="font-size:10px"></i> 削除済み</span>'
+      : '';
+    // 元のステータスバッジ
+    const statusBadge = p.status === 'approved' ? '<span class="badge badge-approved">承認済</span>'
+      : p.status === 'rejected' ? '<span class="badge badge-rejected">否承認</span>'
+      : '<span class="badge badge-pending">承認待ち</span>';
+    return '<div class="project-row" style="cursor:pointer' + (isDeleted ? ';opacity:0.55;background:#fafafa' : '') + '" onclick="selectPjEditProject('+p.id+')">' +
+      '<div style="flex:1">' +
+      '<div class="project-name">' + (isDeleted ? '<s style="color:#999">' : '') + esc(p.name) + (isDeleted ? '</s>' : '') + '</div>' +
+      '<div class="project-meta">申請者: '+esc(p.applicant)+'｜分類: '+esc(p.category||'—')+'｜P#: '+esc(p.pNumber||'—')+'｜申請日: '+fmtDate(p.appliedAt)+'｜活動期間: '+esc(p.period||'—')+'</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:4px;align-items:center;flex-shrink:0">' +
+      deletedBadge + statusBadge +
+      '</div>' +
+      '<i class="ti ti-chevron-right" style="color:#bbb;margin-left:8px"></i></div>';
+  }).join('');
+}
+
+function selectPjEditProject(id) {
+  selectedPjEditProjId = id;
+  const allPjs = window.allProjects || projects;
+  const p = allPjs.find(x => x.id == id);
+  if (!p) return;
+  document.getElementById('pjedit-search-card').style.display = 'none';
+  document.getElementById('pjedit-selected-area').style.display = 'block';
+  document.getElementById('pjedit-selected-name').textContent = p.name;
+  renderPjEditForm();
+}
+
+function clearPjEditSelection() {
+  selectedPjEditProjId = null;
+  document.getElementById('pjedit-search-card').style.display = 'block';
+  document.getElementById('pjedit-selected-area').style.display = 'none';
+  document.getElementById('pjedit-detail').innerHTML = '';
+}
+
+let pjeditMembers = [];
+
+function renderPjEditForm() {
+  const allPjs = window.allProjects || projects;
+  const p = allPjs.find(x => x.id == selectedPjEditProjId);
+  if (!p) return;
+  pjeditMembers = [...(p.members||[])];
+
+  // 編集履歴
+  const editHist = (p.budgetHistory||[]).filter(h => h.type === 'pj_edit' || h.type === 'pj_delete');
+  const histHtml = editHist.length === 0
+    ? '<div style="color:#bbb;font-size:13px;padding:8px 0">編集・削除履歴はありません</div>'
+    : editHist.slice().reverse().map(h => {
+        const isDel = h.type === 'pj_delete';
+        const badge = isDel
+          ? '<span class="badge badge-rejected" style="margin-right:6px">PJ削除</span>'
+          : '<span class="badge badge-pending" style="margin-right:6px">PJ編集</span>';
+        return '<div class="history-item">' +
+          '<span class="history-date">'+fmtDate(h.date)+'</span>' +
+          '<span>'+badge+esc(String(h.reason||'')) + '<span style="color:#bbb"> ／'+esc(h.user||'')+'</span></span></div>';
+      }).join('');
+
+  // 活動期間をパース
+  const periodMatch = String(p.period||'').match(/^(\d{4})年(\d+)月〜(\d+)月$/);
+  const pyear  = periodMatch ? periodMatch[1] : '';
+  const pstart = periodMatch ? periodMatch[2] : '';
+  const pend   = periodMatch ? periodMatch[3] : '';
+
+  const YEAR_OPTS = ['2026','2027','2028','2029','2030'].map(y =>
+    '<option value="'+y+'"'+(pyear===y?' selected':'')+'>'+y+'年</option>').join('');
+  const MONTH_OPTS = s => [1,2,3,4,5,6,7,8,9,10,11,12].map(m =>
+    '<option value="'+m+'"'+(String(m)===String(s)?' selected':'')+'>'+m+'月</option>').join('');
+
+  // メンバータグ
+  const memberTagsHtml = pjeditMembers.map(m =>
+    '<div class="tag" data-name="'+esc(m)+'">'+esc(m)+
+    '<span class="tag-x" onclick="removePjEditMember(this)"> ×</span></div>'
+  ).join('');
+
+  const html =
+    (p.deleted ? '<div class="alert alert-error" style="margin-bottom:1rem"><i class="ti ti-trash"></i> このプロジェクトは削除済みです。他のタブには表示されません。</div>' : '') +
+    '<div class="card">' +
+    '<div class="card-title"><i class="ti ti-edit"></i> プロジェクト情報の編集</div>' +
+    '<label>プロジェクト名 <span style="color:#e74c3c">*</span></label>' +
+    '<input type="text" id="pjedit-name" value="'+esc(p.name)+'">' +
+    '<label>活動内容 <span style="color:#e74c3c">*</span></label>' +
+    '<textarea id="pjedit-desc">'+esc(p.desc)+'</textarea>' +
+    '<label>申請者名 <span style="color:#e74c3c">*</span></label>' +
+    '<input type="text" id="pjedit-applicant" value="'+esc(p.applicant)+'">' +
+    '<label>分類</label>' +
+    '<select id="pjedit-category" data-selected="'+esc(p.category||'')+'"></select>' +
+    '<label>P#</label>' +
+    '<input type="text" id="pjedit-number" value="'+esc(p.pNumber||'')+'">' +
+    '<label>メンバー（入力後Enterで追加）</label>' +
+    '<div class="tag-wrap" id="pjedit-member-wrap" onclick="document.getElementById(&quot;pjedit-member-in&quot;).focus()">' +
+    memberTagsHtml +
+    '<input class="tag-in" id="pjedit-member-in" placeholder="氏名を入力..." onkeydown="addPjEditMember(event)">' +
+    '</div>' +
+    '<label>活動期間</label>' +
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+    '<select id="pjedit-year" style="width:120px"><option value="">年を選択</option>'+YEAR_OPTS+'</select>' +
+    '<select id="pjedit-month-start" style="width:90px"><option value="">開始月</option>'+MONTH_OPTS(pstart)+'</select>' +
+    '<span style="color:#666;white-space:nowrap">〜</span>' +
+    '<select id="pjedit-month-end" style="width:90px"><option value="">終了月</option>'+MONTH_OPTS(pend)+'</select>' +
+    '</div>' +
+    '<label>編集者名 <span style="color:#e74c3c">*</span></label>' +
+    '<input type="text" id="pjedit-editor" placeholder="編集者名を入力">' +
+    '<label>編集理由・メモ（任意）</label>' +
+    '<input type="text" id="pjedit-reason" placeholder="変更内容や理由を入力">' +
+    '<div id="pjedit-msg" style="margin-top:8px"></div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:1rem">' +
+    '<button class="btn btn-danger" id="pjedit-delete-btn" onclick="confirmDeleteProject()"><i class="ti ti-trash"></i> プロジェクト削除</button>' +
+    '<button class="btn btn-primary" id="pjedit-submit-btn" onclick="submitPjEdit()"' + (p.deleted ? ' disabled style="opacity:0.5"' : '') + '><i class="ti ti-device-floppy"></i> 保存する</button>' +
+    '</div></div>' +
+    '<div class="card">' +
+    '<div class="card-title"><i class="ti ti-history"></i> 編集履歴</div>' +
+    histHtml +
+    '</div>';
+  document.getElementById('pjedit-detail').innerHTML = html;
+  populateCategorySelects();
+  const categoryEl = document.getElementById('pjedit-category');
+  if (categoryEl) {
+    // data-selected または現在値を優先してセット
+    const targetCat = String(p.category || '').trim();
+    if (targetCat) categoryEl.value = targetCat;
+  }
+  // 動的生成された pjedit-year に年同期リスナーを再バインド
+  const pjeditYearEl = document.getElementById('pjedit-year');
+  if (pjeditYearEl) {
+    pjeditYearEl.addEventListener('change', function(){ syncYearFrom('pjedit-year'); });
+  }
+  // 編集者入力欄が空ならユーザー名で初期化
+  try {
+    const editUser = teamsContext.user || currentUserName || '';
+    if (editUser) {
+      const editEl = document.getElementById('pjedit-editor');
+      if (editEl && (editEl.value||'').trim() === '') editEl.value = editUser;
+    }
+  } catch(e) {}
+}
+
+function addPjEditMember(e) {
+  if (e.key !== 'Enter') return;
+  const v = e.target.value.trim();
+  if (!v) return;
+  pjeditMembers.push(v);
+  const tag = document.createElement('div');
+  tag.className = 'tag';
+  tag.dataset.name = v;
+  tag.innerHTML = esc(v) + '<span class="tag-x" onclick="removePjEditMember(this)"> ×</span>';
+  document.getElementById('pjedit-member-wrap').insertBefore(tag, e.target);
+  e.target.value = '';
+}
+
+function removePjEditMember(el) {
+  const name = el.parentElement.dataset.name;
+  pjeditMembers = pjeditMembers.filter(m => m !== name);
+  el.parentElement.remove();
+}
+
+function confirmDeleteProject() {
+  const allPjs = window.allProjects || projects;
+  const p = allPjs.find(x => x.id == selectedPjEditProjId);
+  if (!p) return;
+  if (p.deleted) {
+    document.getElementById('pjedit-msg').innerHTML = '<div class="alert alert-error">このプロジェクトはすでに削除済みです</div>';
+    return;
+  }
+  const editor = document.getElementById('pjedit-editor').value.trim();
+  if (!editor) {
+    document.getElementById('pjedit-msg').innerHTML = '<div class="alert alert-error">削除前に編集者名を入力してください</div>';
+    return;
+  }
+  if (!confirm('「'+p.name+'」を削除しますか？削除後は②③④⑤⑥には表示されなくなりますが、⑦に削除履歴は残ります。')) return;
+  deleteProject(editor);
+}
+
+async function deleteProject(editor) {
+  const msgEl = document.getElementById('pjedit-msg');
+  const delBtn = document.getElementById('pjedit-delete-btn');
+  if (delBtn) { delBtn.disabled = true; delBtn.style.opacity = '0.5'; }
+  try {
+    await gasRequest('deleteProject', { id: selectedPjEditProjId, editor });
+    msgEl.innerHTML = '<div class="alert alert-success">✓ プロジェクトを削除しました。</div>';
+    await loadProjects();
+    renderPjEditForm();
+  } catch(e) {
+    msgEl.innerHTML = '<div class="alert alert-error">エラー: ' + esc(e.message) + '</div>';
+    if (delBtn) { delBtn.disabled = false; delBtn.style.opacity = '1'; }
+  }
+}
+
+async function submitPjEdit() {
+  const name      = document.getElementById('pjedit-name').value.trim();
+  const desc      = document.getElementById('pjedit-desc').value.trim();
+  const applicant = document.getElementById('pjedit-applicant').value.trim();
+  const categoryEl = document.getElementById('pjedit-category');
+  const category  = categoryEl ? String(categoryEl.value || '').trim() : '';
+  const projectNumber = document.getElementById('pjedit-number').value.trim();
+  const editor    = document.getElementById('pjedit-editor').value.trim();
+  const reason    = document.getElementById('pjedit-reason').value.trim();
+  const year      = document.getElementById('pjedit-year').value;
+  const mstart    = document.getElementById('pjedit-month-start').value;
+  const mend      = document.getElementById('pjedit-month-end').value;
+  const period    = year && mstart && mend ? year+'年'+mstart+'月〜'+mend+'月' : '';
+  const msgEl     = document.getElementById('pjedit-msg');
+  if (!name)      { msgEl.innerHTML = '<div class="alert alert-error">プロジェクト名を入力してください</div>'; return; }
+  if (!desc)      { msgEl.innerHTML = '<div class="alert alert-error">活動内容を入力してください</div>'; return; }
+  if (!applicant) { msgEl.innerHTML = '<div class="alert alert-error">申請者名を入力してください</div>'; return; }
+  if (!editor)    { msgEl.innerHTML = '<div class="alert alert-error">編集者名を入力してください</div>'; return; }
+  const btn = document.getElementById('pjedit-submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 保存中...';
+  try {
+    await gasRequest('updateProjectInfo', {
+      id: selectedPjEditProjId, name, desc, applicant, category, pNumber: projectNumber,
+      members: [...pjeditMembers], period, editor, reason
+    });
+    msgEl.innerHTML = '<div class="alert alert-success">✓ 保存しました。</div>';
+    await loadProjects();
+    renderPjEditForm();
+    document.getElementById('pjedit-selected-name').textContent = name;
+    setTimeout(function(){ msgEl.innerHTML = ''; }, 3000);
+  } catch(e) {
+    msgEl.innerHTML = '<div class="alert alert-error">エラー: ' + esc(e.message) + '</div>';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-device-floppy"></i> 保存する';
+}
+
+function exportCSV() {
+  const approved = projects.filter(p => p.status === 'approved');
+  if (approved.length === 0) { alert('エクスポートするデータがありません'); return; }
+  const BOM = '\uFEFF';
+  let csv = BOM + 'プロジェクト名,申請者,承認者,承認日,予算額,使用済み,残額,使用率\n';
+  approved.forEach(p => {
+    const cur = Number(p.currentBudget)||Number(p.budget)||0;
+    const used = Number(p.usedAmount)||0;
+    const pct = cur>0?Math.round(used/cur*100):0;
+    csv += [escCsv(p.name),escCsv(p.applicant),escCsv(p.approvedBy),escCsv(p.approvedAt),cur,used,cur-used,pct+'%'].join(',') + '\n';
+  });
+  csv += '\n予算変更履歴\nプロジェクト名,種別,金額,理由,承認者/登録者,日付\n';
+  approved.forEach(p => {
+    (p.budgetHistory||[]).forEach(h => {
+      const lbl = {increase:'増額',decrease:'減額',use:'使用'}[h.type]||h.type;
+      csv += [escCsv(p.name),lbl,h.amount,escCsv(h.reason),escCsv(h.approver||h.user||''),escCsv(h.date)].join(',') + '\n';
+    });
+  });
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '予算管理_' + new Date().toLocaleDateString('ja-JP').replace(/\//g,'') + '.csv';
+  a.click();
+}
+
+async function saveAndTest() {
+  const url = document.getElementById('gas-url').value.trim();
+  if (!url) { showMsg('conn-test-msg','error','URLを入力してください'); return; }
+  cfg.gasUrl = url;
+  saveCfg();
+  showMsg('conn-test-msg','info','<span class="spinner"></span> 接続テスト中...');
+  try {
+    const res = await gasRequest('ping');
+    if (res.ok) {
+      showMsg('conn-test-msg','success','✓ 接続成功！スプレッドシートと正常に通信できました。');
+      document.getElementById('conn-status').textContent = '✓ Googleスプレッドシート接続済み';
+      document.getElementById('setup-banner').style.display = 'none';
+    }
+  } catch(e) {
+    showMsg('conn-test-msg','error','接続エラー: ' + e.message + '｜URLとデプロイ設定を確認してください');
+  }
+}
+
+function changeCode() {
+  const cur = document.getElementById('cur-code').value;
+  const nw = document.getElementById('new-code').value;
+  const conf = document.getElementById('conf-code').value;
+  if (cur !== cfg.approvalCode) { showMsg('code-msg','error','現在のコードが正しくありません'); return; }
+  if (nw.length < 6) { showMsg('code-msg','error','新しいコードは6文字以上にしてください'); return; }
+  if (nw !== conf) { showMsg('code-msg','error','新しいコードが一致しません'); return; }
+  cfg.approvalCode = nw;
+  saveCfg();
+  document.getElementById('cur-code').value = '';
+  document.getElementById('new-code').value = '';
+  document.getElementById('conf-code').value = '';
+  showMsg('code-msg','success','承認コードを変更しました');
+  setTimeout(()=>{ document.getElementById('code-msg').innerHTML=''; },3000);
+}
+
+function showMsg(elId, type, msg) {
+  const cls = {error:'alert-error',success:'alert-success',info:'alert-info',warn:'alert-warn'}[type];
+  document.getElementById(elId).innerHTML = '<div class="alert '+cls+'">'+msg+'</div>';
+}
+
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function copyGasCode() {
+  const code = `function doGet(e) {
+  const data = e.parameter.data ? JSON.parse(decodeURIComponent(e.parameter.data)) : {};
+  const action = e.parameter.action;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const lock = LockService.getScriptLock();
+  lock.tryLock(10000);
+  try {
+    if (action === 'ping') return ok({ok: true});
+    if (action === 'getProjects') return ok({projects: getProjects(ss)});
+    if (action === 'addProject') return ok(addProject(ss, data));
+    if (action === 'updateProjectStatus') return ok(updateStatus(ss, data));
+    if (action === 'addBudgetHistory') return ok(addBudgetHistory(ss, data));
+    if (action === 'addRevisionRequest') return ok(addRevisionRequest(ss, data));
+    if (action === 'approveRevision')    return ok(approveRevision(ss, data));
+    if (action === 'updateProjectInfo')   return ok(updateProjectInfo(ss, data));
+    if (action === 'deleteProject')        return ok(deleteProject(ss, data));
+    if (action === 'testEmail')            return ok(testEmail(ss, data));
+    return ok({error: 'unknown action'});
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function ok(data) {
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getSheet(ss, name, headers) {
+  let sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.appendRow(headers);
+    sh.setFrozenRows(1);
+  } else if (headers && headers.length > sh.getLastColumn()) {
+    const currentCols = sh.getLastColumn();
+    const missing = headers.slice(currentCols);
+    if (missing.length > 0) {
+      sh.getRange(1, currentCols + 1, 1, missing.length).setValues([missing]);
+    }
+  }
+  return sh;
+}
+
+function getProjects(ss) {
+  const pSh = getSheet(ss, 'projects', ['id','name','desc','applicant','members','budget','expenses','status','approvedBy','approvedAt','approveComment','currentBudget','usedAmount','appliedAt','period','category','pNumber','budgetFirst','budgetSecond']);
+  const hSh = getSheet(ss, 'history', ['id','projectId','type','amount','reason','approver','user','date']);
+  const pData = pSh.getDataRange().getValues();
+  const hData = hSh.getDataRange().getValues();
+  if (pData.length <= 1) return [];
+  const pRows = pData.slice(1);
+  const hRows = hData.length > 1 ? hData.slice(1) : [];
+  return pRows.map(r => ({
+    id: r[0], name: r[1], desc: r[2], applicant: r[3],
+    members: r[4] ? String(r[4]).split(',') : [],
+    budget: r[5],
+    expenses: r[6] ? JSON.parse(r[6]) : [],
+    status: r[7], approvedBy: r[8], approvedAt: r[9], approveComment: r[10],
+    currentBudget: r[11] !== '' ? r[11] : r[5],
+    usedAmount: r[12] !== '' ? r[12] : 0,
+    appliedAt: r[13], period: r[14]||'', category: r[15]||'', pNumber: r[16]||'', budgetFirst: r[17]||0, budgetSecond: r[18]||0, deleted: r[19]||false,
+    budgetHistory: hRows.filter(h => String(h[1]) === String(r[0])).map(h => ({
+      id:h[0], projectId:h[1], type:h[2], amount:h[3],
+      reason:h[4], approver:h[5], user:h[6], date:h[7],
+      status:h[8]||'', comment:h[9]||'',
+      budgetBefore:h[10]||'', budgetAfter:h[11]||'',
+      amountFirst:h[12]||0, amountSecond:h[13]||0
+    }))
+  }));
+}
+
+function addProject(ss, d) {
+  const sh = getSheet(ss, 'projects', ['id','name','desc','applicant','members','budget','expenses','status','approvedBy','approvedAt','approveComment','currentBudget','usedAmount','appliedAt','period','category','pNumber','budgetFirst','budgetSecond']);
+  const rows = sh.getLastRow();
+  const id = rows;
+  const now = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
+  sh.appendRow([id, d.name, d.desc, d.applicant, (d.members||[]).join(','), d.budget, JSON.stringify(d.expenses||[]), 'pending','','','', d.budget, 0, now, d.period||'', d.category||'', d.pNumber||'', d.budgetFirst||0, d.budgetSecond||0]);
+  var emailErr = sendApprovalEmails(
+    d.approvalEmails || [],
+    '【承認依頼】PJ新規申請：' + d.name,
+    'PJ新規申請の承認をお願いします。\\n\\n' +
+    '■ プロジェクト名：' + d.name + '\\n' +
+    '■ 申請者：' + (d.applicant||'') + '\\n' +
+    '■ 活動内容：' + (d.desc||'') + '\\n' +
+    '■ 活動期間：' + (d.period||'') + '\\n' +
+    '■ 分類：' + (d.category||'') + '\\n' +
+    '■ 希望予算：' + Number(d.budget).toLocaleString() + '円' +
+    '（上期：' + Number(d.budgetFirst||0).toLocaleString() + '円 / 下期：' + Number(d.budgetSecond||0).toLocaleString() + '円）\\n\\n' +
+    '承認はアプリの⑤承認タブから行ってください。'
+  );
+  return {success: true, id: id, emailError: emailErr};
+}
+
+function updateStatus(ss, d) {
+  const sh = getSheet(ss, 'projects', []);
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(d.id)) {
+      const now = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
+      sh.getRange(i+1, 8).setValue(d.status);
+      sh.getRange(i+1, 9).setValue(d.approvedBy || '');
+      sh.getRange(i+1, 10).setValue(now);
+      sh.getRange(i+1, 11).setValue(d.approveComment || '');
+      return {success: true};
+    }
+  }
+  return {error: 'project not found'};
+}
+
+function addRevisionRequest(ss, d) {
+  const hSh = getSheet(ss, 'history', ['id','projectId','type','amount','reason','approver','user','date','status','comment','budgetBefore','budgetAfter','amountFirst','amountSecond']);
+  const pSh = getSheet(ss, 'projects', []);
+  const now  = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
+  const hId  = hSh.getLastRow();
+  const pData = pSh.getDataRange().getValues();
+  var budgetBefore = 0, budgetAfter = 0, projName = '';
+  for (var i = 1; i < pData.length; i++) {
+    if (String(pData[i][0]) === String(d.projectId)) {
+      budgetBefore = Number(pData[i][11]) || Number(pData[i][5]) || 0;
+      budgetAfter  = d.type === 'increase'
+        ? budgetBefore + Number(d.amount)
+        : Math.max(0, budgetBefore - Number(d.amount));
+      projName = pData[i][1] || '';
+      break;
+    }
+  }
+  const reasonWithType = (d.type === 'increase' ? 'increase:' : 'decrease:') + (d.reason||'');
+  const amountFirst  = Number(d.amountFirst)  || 0;
+  const amountSecond = Number(d.amountSecond) || 0;
+  hSh.appendRow([hId, d.projectId, 'revision_request', d.amount, reasonWithType, '', d.applicant||'', now, 'pending', '', budgetBefore, budgetAfter, amountFirst, amountSecond]);
+  var emailErr = sendApprovalEmails(
+    d.approvalEmails || [],
+    '【承認依頼】予算変更申請：' + projName,
+    '予算変更申請の承認をお願いします。\\n\\n' +
+    '■ プロジェクト名：' + projName + '\\n' +
+    '■ 申請者：' + (d.applicant||'') + '\\n' +
+    '■ 種別：' + (d.type === 'increase' ? '増額' : '減額') + '\\n' +
+    '■ 変更額：' + Number(d.amount).toLocaleString() + '円' +
+    '（上期：' + Number(amountFirst).toLocaleString() + '円 / 下期：' + Number(amountSecond).toLocaleString() + '円）\\n' +
+    '■ 変更理由：' + (d.reason||'') + '\\n\\n' +
+    '承認はアプリの⑤承認タブから行ってください。'
+  );
+  return { success: true, emailError: emailErr };
+}
+
+function approveRevision(ss, d) {
+  var hSh   = getSheet(ss, 'history', []);
+  var pSh   = getSheet(ss, 'projects', []);
+  var hData = hSh.getDataRange().getValues();
+  var hCols = hData[0]; // ヘッダー行で列数を確認
+  var now   = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
+  for (var i = 1; i < hData.length; i++) {
+    if (String(hData[i][0]) === String(d.histId)) {
+      // col6=approver, col9=status, col10=comment (1-indexed)
+      hSh.getRange(i+1, 6).setValue(d.approver||'');
+      hSh.getRange(i+1, 9).setValue(d.result);
+      hSh.getRange(i+1, 10).setValue(d.comment||'');
+      if (d.result === 'approved') {
+        var projectId = hData[i][1];
+        var amount    = Number(hData[i][3]);
+        var reasonStr = String(hData[i][4]);
+        var revType   = reasonStr.indexOf('increase:') === 0 ? 'increase' : 'decrease';
+        var pData     = pSh.getDataRange().getValues();
+        for (var j = 1; j < pData.length; j++) {
+          if (String(pData[j][0]) === String(projectId)) {
+            var cur = Number(pData[j][11]);
+            if (!cur || isNaN(cur)) cur = Number(pData[j][5]) || 0;
+            if (revType === 'increase') cur = cur + amount;
+            if (revType === 'decrease') cur = cur > amount ? cur - amount : 0;
+            pSh.getRange(j+1, 12).setValue(cur);
+            // 承認日時も記録
+            hSh.getRange(i+1, 8).setValue(now);
+            return { success: true, newBudget: cur };
+          }
+        }
+        return { error: 'project not found' };
+      }
+      return { success: true };
+    }
+  }
+  return { error: 'history not found: ' + d.histId };
+}
+
+function deleteProject(ss, d) {
+  var pSh   = getSheet(ss, 'projects', []);
+  var hSh   = getSheet(ss, 'history', ['id','projectId','type','amount','reason','approver','user','date','status','comment','budgetBefore','budgetAfter','amountFirst','amountSecond','deleted']);
+  var pData = pSh.getDataRange().getValues();
+  var now   = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
+  for (var i = 1; i < pData.length; i++) {
+    if (String(pData[i][0]) === String(d.id)) {
+      // projectsシートにdeleted列（20列目）を追記
+      // まずシートの列数を確認
+      var lastCol = pSh.getLastColumn();
+      if (lastCol < 20) {
+        // 列が足りない場合はヘッダーに追加
+        pSh.getRange(1, 20).setValue('deleted');
+      }
+      pSh.getRange(i+1, 20).setValue('true');
+      // 削除履歴をhistoryシートに記録
+      var hId = hSh.getLastRow();
+      hSh.appendRow([hId, d.id, 'pj_delete', 0, d.reason||'', '', d.editor||'', now, 'done', '', '', '', 0, 0]);
+      return {success: true};
+    }
+  }
+  return {error: 'project not found'};
+}
+
+function updateProjectInfo(ss, d) {
+  var pSh   = getSheet(ss, 'projects', ['id','name','desc','applicant','members','budget','expenses','status','approvedBy','approvedAt','approveComment','currentBudget','usedAmount','appliedAt','period','category','pNumber','budgetFirst','budgetSecond']);
+  var hSh   = getSheet(ss, 'history', ['id','projectId','type','amount','reason','approver','user','date','status','comment','budgetBefore','budgetAfter','amountFirst','amountSecond']);
+  var pData = pSh.getDataRange().getValues();
+  var now   = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
+  for (var i = 1; i < pData.length; i++) {
+    if (String(pData[i][0]) === String(d.id)) {
+      // 変更前の値を記録
+      var before = [pData[i][1], pData[i][2], pData[i][3], pData[i][4], pData[i][14], pData[i][15], pData[i][16]].join('|');
+      var after  = [d.name, d.desc, d.applicant, (d.members||[]).join(','), d.period||'', d.category||'', d.pNumber||''].join('|');
+      // プロジェクト情報を更新
+      pSh.getRange(i+1, 2).setValue(d.name);
+      pSh.getRange(i+1, 3).setValue(d.desc);
+      pSh.getRange(i+1, 4).setValue(d.applicant);
+      pSh.getRange(i+1, 5).setValue((d.members||[]).join(','));
+      pSh.getRange(i+1, 15).setValue(d.period||'');
+      pSh.getRange(i+1, 16).setValue(d.category||'');
+      pSh.getRange(i+1, 17).setValue(d.pNumber||'');
+      // 編集履歴をhistoryシートに記録
+      var hId = hSh.getLastRow();
+      var changeDesc = 'before:'+before+'||after:'+after;
+      if (d.reason) changeDesc += '||memo:'+d.reason;
+      hSh.appendRow([hId, d.id, 'pj_edit', 0, changeDesc, '', d.editor||'', now, 'done', '', '', '', 0, 0]);
+      return {success: true};
+    }
+  }
+  return {error: 'project not found'};
+}
+
+function addBudgetHistory(ss, d) {
+  const pSh = getSheet(ss, 'projects', []);
+  const hSh = getSheet(ss, 'history', ['id','projectId','type','amount','reason','approver','user','date']);
+  const now = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
+  const hId = hSh.getLastRow();
+  hSh.appendRow([hId, d.projectId, d.type, d.amount, d.reason, d.approver||'', d.user||'', now]);
+  const pData = pSh.getDataRange().getValues();
+  for (let i = 1; i < pData.length; i++) {
+    if (String(pData[i][0]) === String(d.projectId)) {
+      let cur = Number(pData[i][11]) || Number(pData[i][5]) || 0;
+      let used = Number(pData[i][12]) || 0;
+      if (d.type === 'increase') cur += Number(d.amount);
+      if (d.type === 'decrease') cur = Math.max(0, cur - Number(d.amount));
+      if (d.type === 'use') used += Number(d.amount);
+      pSh.getRange(i+1, 12).setValue(cur);
+      pSh.getRange(i+1, 13).setValue(used);
+      return {success: true};
+    }
+  }
+  return {error: 'project not found'};
+}
+
+function sendApprovalEmails(emails, subject, body) {
+  if (!emails || emails.length === 0) return null;
+  try {
+    for (var i = 0; i < emails.length; i++) {
+      var email = String(emails[i] || '').trim();
+      if (email && email.indexOf('@') > 0) {
+        MailApp.sendEmail(email, subject, body);
+      }
+    }
+    return null;
+  } catch(e) {
+    Logger.log('sendApprovalEmails error: ' + e.message);
+    return e.message;
+  }
+}
+
+// MailAppスコープを認証するための関数。
+// GASエディタでこの関数を1回実行してください。
+function authorizeMailApp() {
+  MailApp.getRemainingDailyQuota();
+  Logger.log('MailApp authorized OK');
+}
+
+function testEmail(ss, d) {
+  var emails = d.emails || [];
+  var emailErr = sendApprovalEmails(
+    emails,
+    '【テスト】承認依頼メール設定の確認',
+    'これはテストメールです。\\nPJ予算管理アプリの承認依頼メール設定が正常に機能しています。'
+  );
+  return { success: !emailErr, emailError: emailErr };
+}`;
+  navigator.clipboard.writeText(code).then(
+    () => alert('コードをコピーしました！\nGoogle Apps Scriptのエディタに貼り付けてください。'),
+    () => {
+      const ta = document.createElement('textarea');
+      ta.value = code;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('コードをコピーしました！\nGoogle Apps Scriptのエディタに貼り付けてください。');
+    }
+  );
+}
+
+// 初期化（接続確認は行わず即起動）
+(function init() {
+  // URLが未設定の場合はデフォルトURLを使用
+  if (!cfg.gasUrl) {
+    cfg.gasUrl = 'https://script.google.com/macros/s/AKfycbxF-AY5ZRQXCsEyC4qsJu1vokaIjHXOrzsQDm7tFC3HaDEjtQJp5VqWdOLOIcwPgqEcKg/exec';
+    saveCfg();
+  }
+  document.getElementById('gas-url').value = cfg.gasUrl;
+  document.getElementById('conn-status').textContent = '✓ Googleスプレッドシート設定済み';
+  document.getElementById('setup-banner').style.display = 'none';
+  const chk = document.getElementById('opt-search-all-years');
+  if (chk) chk.checked = !!cfg.searchAllYears;
+
+  // 現在年を各セクションの年選択の初期値にセット
+  const currentYear = String(new Date().getFullYear());
+  ['approve-year','budget-year','revision-year','history-year','summary-year','pjedit-year'].forEach(function(id) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    // optionが存在する場合のみセット
+    const opts = Array.from(sel.options).map(o => o.value);
+    if (opts.includes(currentYear)) sel.value = currentYear;
+  });
+  // ⑥ summary-year を設定後、上期/下期/通期タブも有効化
+  const sumYearSel = document.getElementById('summary-year');
+  if (sumYearSel && sumYearSel.value) {
+    summaryYear = sumYearSel.value;
+    ['first','second','all'].forEach(function(k) {
+      const btn = document.getElementById('summary-tab-' + k);
+      if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
+    });
+  }
+
+  // 年セレクタの同期バインド（タブ間で年度を同期する）
+  ['approve-year','budget-year','revision-year','history-year','summary-year','pjedit-year','proj-year'].forEach(function(id) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.addEventListener('change', function(){ syncYearFrom(id); });
+  });
+
+  // 各検索inputにイベントリスナーを確実にバインド（oninput属性の補強）
+  const searchBindings = [
+    ['approve-search-input',  renderApproveSearch],
+    ['budget-search-input',   renderBudgetSearch],
+    ['revision-search-input', renderRevisionSearch],
+    ['history-search-input',  renderHistorySearch],
+    ['pjedit-search-input',   renderPjEditSearch],
+  ];
+  searchBindings.forEach(function(pair) {
+    const el = document.getElementById(pair[0]);
+    if (!el) return;
+    el.addEventListener('input',  function() { pair[1](); });
+    el.addEventListener('keyup',  function() { pair[1](); });
+    el.addEventListener('change', function() { pair[1](); });
+    el.addEventListener('compositionend', function() { pair[1](); }); // IME確定後
+  });
+  // 初期的に window.projects を用意
+  window.projects = projects;
+  // PJ編集の削除済み表示設定を反映
+  const pjChk = document.getElementById('pjedit-hide-deleted');
+  if (pjChk) pjChk.checked = !!cfg.hideDeletedInPjEdit;
+  // 分類候補設定を反映
+  renderCategoryOptionSettings();
+  populateCategorySelects();
+  // メール配信先設定を反映
+  renderApprovalEmailSettings();
+  // Teamsパラメータ解析
+  parseTeamsParams();
+  // ユーザー表示に反映
+  displayTeamsUser();
+  // Teams連携ユーザーまたは前回入力した氏名をモーダルに事前セット
+  try {
+    const muEl = document.getElementById('mode-username');
+    if (muEl && (muEl.value || '').trim() === '') {
+      muEl.value = teamsContext.user || localStorage.getItem('proj_last_username') || '';
+    }
+  } catch(e) {}
+  // 起動モードがURLで指定されているか確認（例: ?mode=admin）
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const forced = params.get('mode');
+    if (forced === 'admin' || forced === 'general') {
+      appMode = forced === 'admin' ? 'admin' : 'general';
+      applyMode();
+      // モード選択モーダルは表示せず、最初のタブを開く
+      showSection('apply');
+    } else {
+      // モード未指定 → モーダルを表示して選択を促す
+      document.getElementById('mode-select-modal').style.display = 'flex';
+    }
+  } catch(e) { console.error('init mode detect error', e); document.getElementById('mode-select-modal').style.display = 'flex'; }
+
+  // 起動時にデータをロードしてナビの承認待ち表示を更新
+  loadProjects();
+})();
+</script>
+</body>
+</html>
