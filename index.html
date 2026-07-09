@@ -611,9 +611,9 @@ cfg.approvalCode = cfg.approvalCode || 'admin1234';
 cfg.gasUrl = cfg.gasUrl || 'https://script.google.com/macros/s/AKfycbxF-AY5ZRQXCsEyC4qsJu1vokaIjHXOrzsQDm7tFC3HaDEjtQJp5VqWdOLOIcwPgqEcKg/exec';
 if (typeof cfg.searchAllYears === 'undefined') cfg.searchAllYears = false;
 if (typeof cfg.hideDeletedInPjEdit === 'undefined') cfg.hideDeletedInPjEdit = true;
-if (typeof cfg.hqBudgets === 'undefined') cfg.hqBudgets = {};
-if (typeof cfg.categoryOptions === 'undefined') cfg.categoryOptions = [];
-if (typeof cfg.approvalEmails === 'undefined') cfg.approvalEmails = [];
+// ⑧各種設定（本部予算・分類候補・承認メール配信先）はGoogleスプレッドシート側で管理し、
+// ブラウザのlocalStorageには保存しない（全員で共有し、管理者のみ参照可能にするため）
+let adminSettings = { hqBudgets: {}, categoryOptions: [], approvalEmails: [] };
 
 var projects = [];
 let members = [];
@@ -628,8 +628,8 @@ window.projects = projects;
 function saveCfg() { localStorage.setItem(LS, JSON.stringify(cfg)); }
 
 function getCategoryOptions() {
-  return Array.isArray(cfg.categoryOptions)
-    ? cfg.categoryOptions.map(function(v){ return String(v||'').trim(); }).filter(Boolean)
+  return Array.isArray(adminSettings.categoryOptions)
+    ? adminSettings.categoryOptions.map(function(v){ return String(v||'').trim(); }).filter(Boolean)
     : [];
 }
 
@@ -659,19 +659,53 @@ function renderCategoryOptionSettings() {
   textarea.value = getCategoryOptions().join('\n');
 }
 
-function saveCategoryOptions() {
-  const textarea = document.getElementById('category-options');
-  if (!textarea) return;
-  cfg.categoryOptions = textarea.value.split(/\r?\n/).map(function(v){ return String(v||'').trim(); }).filter(Boolean);
-  saveCfg();
+// 分類候補は全員が①申請フォームで使うため、権限チェックのない公開エンドポイントから取得する
+async function loadPublicSettings() {
+  try {
+    const res = await gasRequest('getPublicSettings');
+    adminSettings.categoryOptions = (res && res.categoryOptions) || [];
+  } catch(e) {
+    console.error('loadPublicSettings error', e);
+  }
   renderCategoryOptionSettings();
   populateCategorySelects();
-  showMsg('category-options-msg','success','分類候補を保存しました');
+}
+
+async function saveCategoryOptions() {
+  const textarea = document.getElementById('category-options');
+  if (!textarea) return;
+  const list = textarea.value.split(/\r?\n/).map(function(v){ return String(v||'').trim(); }).filter(Boolean);
+  try {
+    await gasRequest('saveAdminSettings', { code: cfg.approvalCode, categoryOptions: list });
+    adminSettings.categoryOptions = list;
+    renderCategoryOptionSettings();
+    populateCategorySelects();
+    showMsg('category-options-msg','success','分類候補を保存しました');
+  } catch(e) {
+    showMsg('category-options-msg','error','保存に失敗しました: ' + e.message);
+  }
+}
+
+// ⑧の設定は管理者のみが参照・変更できる（Googleスプレッドシート側で権限チェック）
+async function loadAdminSettings() {
+  try {
+    const res = await gasRequest('getAdminSettings', { code: cfg.approvalCode });
+    adminSettings.hqBudgets = (res && res.hqBudgets) || {};
+    adminSettings.categoryOptions = (res && res.categoryOptions) || [];
+    adminSettings.approvalEmails = (res && res.approvalEmails) || [];
+  } catch(e) {
+    console.error('loadAdminSettings error', e);
+  }
+  renderHqBudgetList();
+  renderCategoryOptionSettings();
+  populateCategorySelects();
+  renderApprovalEmailSettings();
+  renderSummary();
 }
 
 function getApprovalEmails() {
-  return Array.isArray(cfg.approvalEmails)
-    ? cfg.approvalEmails.map(function(v){ return String(v||'').trim(); }).filter(Boolean)
+  return Array.isArray(adminSettings.approvalEmails)
+    ? adminSettings.approvalEmails.map(function(v){ return String(v||'').trim(); }).filter(Boolean)
     : [];
 }
 
@@ -681,7 +715,7 @@ function renderApprovalEmailSettings() {
   textarea.value = getApprovalEmails().join('\n');
 }
 
-function saveApprovalEmails() {
+async function saveApprovalEmails() {
   const textarea = document.getElementById('approval-emails');
   if (!textarea) return;
   const raw = textarea.value.split(/\r?\n/).map(function(v){ return String(v||'').trim(); }).filter(Boolean);
@@ -690,10 +724,14 @@ function saveApprovalEmails() {
     showMsg('approval-emails-msg','error','無効なメールアドレスがあります: ' + invalid.join(', '));
     return;
   }
-  cfg.approvalEmails = raw;
-  saveCfg();
-  renderApprovalEmailSettings();
-  showMsg('approval-emails-msg','success','承認依頼メール配信先を保存しました');
+  try {
+    await gasRequest('saveAdminSettings', { code: cfg.approvalCode, approvalEmails: raw });
+    adminSettings.approvalEmails = raw;
+    renderApprovalEmailSettings();
+    showMsg('approval-emails-msg','success','承認依頼メール配信先を保存しました');
+  } catch(e) {
+    showMsg('approval-emails-msg','error','保存に失敗しました: ' + e.message);
+  }
 }
 
 async function sendTestEmail() {
@@ -778,7 +816,7 @@ function fillUserNameDefaults(name) {
   } catch(e) { console.error('fillUserNameDefaults error', e); }
 }
 
-function selectMode(mode) {
+async function selectMode(mode) {
   const nameEl  = document.getElementById('mode-username');
   const warnEl  = document.getElementById('mode-warn');
   const name    = (nameEl ? nameEl.value : '').trim();
@@ -802,7 +840,7 @@ function selectMode(mode) {
       if (adminBtn) adminBtn.innerHTML = '<i class="ti ti-lock"></i> 確認・管理者モードで開く';
       return;
     }
-    // 二回目クリック：コードを検証
+    // 二回目クリック：コードをGoogleスプレッドシート側で検証（全員で共通の管理者コードを使う）
     const codeEl = document.getElementById('mode-admin-code');
     const code   = codeEl ? codeEl.value : '';
     if (!code) {
@@ -810,11 +848,24 @@ function selectMode(mode) {
       if (codeEl) codeEl.focus();
       return;
     }
-    if (code !== cfg.approvalCode) {
+    if (adminBtn) { adminBtn.disabled = true; adminBtn.innerHTML = '<span class="spinner"></span> 確認中...'; }
+    let valid = false;
+    try {
+      const res = await gasRequest('verifyAdminCode', { code: code });
+      valid = !!(res && res.valid);
+    } catch(e) {
+      if (warnEl) warnEl.textContent = '確認に失敗しました: ' + e.message;
+      if (adminBtn) { adminBtn.disabled = false; adminBtn.innerHTML = '<i class="ti ti-lock"></i> 確認・管理者モードで開く'; }
+      return;
+    }
+    if (adminBtn) { adminBtn.disabled = false; adminBtn.innerHTML = '<i class="ti ti-lock"></i> 確認・管理者モードで開く'; }
+    if (!valid) {
       if (warnEl) warnEl.textContent = '管理者コードが正しくありません';
       if (codeEl) { codeEl.value = ''; codeEl.focus(); }
       return;
     }
+    cfg.approvalCode = code;
+    saveCfg();
   }
 
   // 検証OK：氏名を保存して画面遷移
@@ -827,6 +878,7 @@ function selectMode(mode) {
   fillUserNameDefaults(name);
   document.getElementById('mode-select-modal').style.display = 'none';
   showSection('apply');
+  if (appMode === 'admin') loadAdminSettings();
 }
 
 function applyMode() {
@@ -1304,7 +1356,7 @@ async function submitProject() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> 送信中...';
   try {
-    const projResult = await gasRequest('addProject', { name, desc, applicant, category, pNumber: projectNumber, members: [...members], budget, expenses, period, budgetFirst, budgetSecond, approvalEmails: getApprovalEmails() });
+    const projResult = await gasRequest('addProject', { name, desc, applicant, category, pNumber: projectNumber, members: [...members], budget, expenses, period, budgetFirst, budgetSecond });
     document.getElementById('proj-name').value = '';
     document.getElementById('proj-desc').value = '';
     document.getElementById('proj-applicant').value = '';
@@ -1673,7 +1725,7 @@ function togglePjEditHideDeleted(el) {
   renderPjEditSearch();
 }
 
-function saveHqBudget() {
+async function saveHqBudget() {
   const yEl = document.getElementById('hq-year');
   const fEl = document.getElementById('hq-first');
   const sEl = document.getElementById('hq-second');
@@ -1683,18 +1735,23 @@ function saveHqBudget() {
   if (!year) { if (msg) msg.innerHTML = '<div class="alert alert-error">年度を選択してください</div>'; return; }
   const first = Number(fEl.value) || 0;
   const second = Number(sEl.value) || 0;
-  cfg.hqBudgets = cfg.hqBudgets || {};
-  cfg.hqBudgets[year] = { first: first, second: second };
-  saveCfg();
-  if (msg) msg.innerHTML = '<div class="alert alert-success">保存しました（' + year + '）</div>';
-  renderHqBudgetList();
-  renderSummary();
+  const updated = Object.assign({}, adminSettings.hqBudgets || {});
+  updated[year] = { first: first, second: second };
+  try {
+    await gasRequest('saveAdminSettings', { code: cfg.approvalCode, hqBudgets: updated });
+    adminSettings.hqBudgets = updated;
+    if (msg) msg.innerHTML = '<div class="alert alert-success">保存しました（' + year + '）</div>';
+    renderHqBudgetList();
+    renderSummary();
+  } catch(e) {
+    if (msg) msg.innerHTML = '<div class="alert alert-error">保存に失敗しました: ' + e.message + '</div>';
+  }
 }
 
 function renderHqBudgetList() {
   const el = document.getElementById('hq-list');
   if (!el) return;
-  const data = cfg.hqBudgets || {};
+  const data = adminSettings.hqBudgets || {};
   const years = Object.keys(data).sort();
   if (years.length === 0) { el.innerHTML = '<div class="empty">本部予算が登録されていません</div>'; return; }
   const rows = years.map(y => {
@@ -1708,20 +1765,26 @@ function renderHqBudgetList() {
 }
 
 function loadHqToForm(year) {
-  const data = cfg.hqBudgets || {};
+  const data = adminSettings.hqBudgets || {};
   if (!data[year]) return;
   document.getElementById('hq-year').value = year;
   document.getElementById('hq-first').value = data[year].first || 0;
   document.getElementById('hq-second').value = data[year].second || 0;
 }
 
-function deleteHqBudget(year) {
-  if (!cfg.hqBudgets || !cfg.hqBudgets[year]) return;
+async function deleteHqBudget(year) {
+  if (!adminSettings.hqBudgets || !adminSettings.hqBudgets[year]) return;
   if (!confirm('本部予算（' + year + '）を削除しますか？')) return;
-  delete cfg.hqBudgets[year];
-  saveCfg();
-  renderHqBudgetList();
-  renderSummary();
+  const updated = Object.assign({}, adminSettings.hqBudgets);
+  delete updated[year];
+  try {
+    await gasRequest('saveAdminSettings', { code: cfg.approvalCode, hqBudgets: updated });
+    adminSettings.hqBudgets = updated;
+    renderHqBudgetList();
+    renderSummary();
+  } catch(e) {
+    alert('削除に失敗しました: ' + e.message);
+  }
 }
 
 function updateApproveNavPending() {
@@ -2100,7 +2163,7 @@ async function submitRevision() {
   try {
     const revResult = await gasRequest('addRevisionRequest', {
       projectId: selectedRevisionProjId, type, amount, amountFirst, amountSecond,
-      reason, applicant, expenses: revExps, approvalEmails: getApprovalEmails()
+      reason, applicant, expenses: revExps
     });
     var revMsg = '<div class="alert alert-success">予算修正の申請が完了しました。承認者の確認をお待ちください。</div>';
     if (revResult && revResult.emailError) {
@@ -2367,7 +2430,7 @@ function renderSummary() {
       '<td class="tr">¥'+totalRemain.toLocaleString()+'</td>' +
       '<td class="tr">'+totPct+'%</td></tr>';
     // A〜F を計算して表示
-    const hq = (cfg.hqBudgets && cfg.hqBudgets[summaryYear]) || { first:0, second:0 };
+    const hq = (adminSettings.hqBudgets && adminSettings.hqBudgets[summaryYear]) || { first:0, second:0 };
     const A = Number(hq.first||0) + Number(hq.second||0); // 本部予算
     const B = Number(totalBudget || 0);                 // 予算総額（PJ合計）
     const C = A - B;                                   // 未設定予算
@@ -2415,7 +2478,7 @@ function renderSummary() {
       '<td class="tr">¥'+totalBudget.toLocaleString()+'</td><td class="tr">¥'+totalUsed.toLocaleString()+'</td>' +
       '<td class="tr">¥'+totalRemain.toLocaleString()+'</td><td class="tr">'+totPct+'%</td></tr>';
     // A〜F を計算して表示（通期）
-    const hq = (cfg.hqBudgets && cfg.hqBudgets[summaryYear]) || { first:0, second:0 };
+    const hq = (adminSettings.hqBudgets && adminSettings.hqBudgets[summaryYear]) || { first:0, second:0 };
     const A = Number(hq.first||0) + Number(hq.second||0); // 本部予算
     const B = Number(totalBudget || 0);                 // 予算総額（PJ合計）
     const C = A - B;                                   // 未設定予算
@@ -2457,7 +2520,7 @@ function renderSummary() {
       '<td class="tr">¥'+totalRemain.toLocaleString()+'</td>' +
       '<td class="tr">'+totPct+'%</td></tr>';
     // A〜F を計算して表示（該当期）
-    const hq = (cfg.hqBudgets && cfg.hqBudgets[summaryYear]) || { first:0, second:0 };
+    const hq = (adminSettings.hqBudgets && adminSettings.hqBudgets[summaryYear]) || { first:0, second:0 };
     const A = isFirst ? Number(hq.first||0) : Number(hq.second||0); // 本部予算（該当期）
     const B = Number(totalBudget || 0);                            // 予算総額（PJ合計、該当期）
     const C = A - B;                                               // 未設定予算
@@ -3008,19 +3071,24 @@ async function saveAndTest() {
   }
 }
 
-function changeCode() {
+async function changeCode() {
   const cur = document.getElementById('cur-code').value;
   const nw = document.getElementById('new-code').value;
   const conf = document.getElementById('conf-code').value;
-  if (cur !== cfg.approvalCode) { showMsg('code-msg','error','現在のコードが正しくありません'); return; }
   if (nw.length < 6) { showMsg('code-msg','error','新しいコードは6文字以上にしてください'); return; }
   if (nw !== conf) { showMsg('code-msg','error','新しいコードが一致しません'); return; }
+  try {
+    await gasRequest('changeAdminCode', { code: cur, newCode: nw });
+  } catch(e) {
+    showMsg('code-msg','error','変更に失敗しました: ' + e.message);
+    return;
+  }
   cfg.approvalCode = nw;
   saveCfg();
   document.getElementById('cur-code').value = '';
   document.getElementById('new-code').value = '';
   document.getElementById('conf-code').value = '';
-  showMsg('code-msg','success','承認コードを変更しました');
+  showMsg('code-msg','success','承認コードを変更しました（部員全員のログインに反映されます）');
   setTimeout(()=>{ document.getElementById('code-msg').innerHTML=''; },3000);
 }
 
@@ -3049,6 +3117,11 @@ function copyGasCode() {
     if (action === 'updateProjectInfo')   return ok(updateProjectInfo(ss, data));
     if (action === 'deleteProject')        return ok(deleteProject(ss, data));
     if (action === 'testEmail')            return ok(testEmail(ss, data));
+    if (action === 'getPublicSettings')    return ok(getPublicSettings(ss));
+    if (action === 'getAdminSettings')     return ok(getAdminSettings(ss, data));
+    if (action === 'saveAdminSettings')    return ok(saveAdminSettings(ss, data));
+    if (action === 'verifyAdminCode')      return ok(verifyAdminCode(ss, data));
+    if (action === 'changeAdminCode')      return ok(changeAdminCode(ss, data));
     return ok({error: 'unknown action'});
   } finally {
     lock.releaseLock();
@@ -3074,6 +3147,98 @@ function getSheet(ss, name, headers) {
     }
   }
   return sh;
+}
+
+// ==== ⑧各種設定（本部予算・分類候補・承認メール配信先）====
+// settingsシートに key/value 形式で保存する。
+// 分類候補（categoryOptions）は①申請フォームで全員が使うため公開だが、
+// 本部予算（hqBudgets）・承認メール配信先（approvalEmails）・管理者コード（adminCode）は管理者のみが参照・変更できる。
+function getSettingsSheet(ss) {
+  return getSheet(ss, 'settings', ['key', 'value']);
+}
+
+function readSettingsMap(ss) {
+  const sh = getSettingsSheet(ss);
+  const data = sh.getDataRange().getValues();
+  const map = {};
+  for (let i = 1; i < data.length; i++) {
+    map[data[i][0]] = data[i][1];
+  }
+  return map;
+}
+
+function writeSetting(ss, key, value) {
+  const sh = getSettingsSheet(ss);
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === key) {
+      sh.getRange(i + 1, 2).setValue(value);
+      return;
+    }
+  }
+  sh.appendRow([key, value]);
+}
+
+function getAdminCode_(ss) {
+  const map = readSettingsMap(ss);
+  return map.adminCode || 'admin1234';
+}
+
+function checkAdminCode_(ss, code) {
+  return String(code || '') === String(getAdminCode_(ss));
+}
+
+function getCategoryOptions_(ss) {
+  const map = readSettingsMap(ss);
+  try { return map.categoryOptions ? JSON.parse(map.categoryOptions) : []; } catch (e) { return []; }
+}
+
+function getApprovalEmails_(ss) {
+  const map = readSettingsMap(ss);
+  try { return map.approvalEmails ? JSON.parse(map.approvalEmails) : []; } catch (e) { return []; }
+}
+
+function getHqBudgets_(ss) {
+  const map = readSettingsMap(ss);
+  try { return map.hqBudgets ? JSON.parse(map.hqBudgets) : {}; } catch (e) { return {}; }
+}
+
+// 公開エンドポイント：分類候補のみ返す（権限チェックなし。①申請フォーム用）
+function getPublicSettings(ss) {
+  return { categoryOptions: getCategoryOptions_(ss) };
+}
+
+// 管理者専用エンドポイント：管理者コードが一致した場合のみ全設定を返す
+function getAdminSettings(ss, d) {
+  if (!checkAdminCode_(ss, d.code)) return { error: '権限がありません' };
+  return {
+    hqBudgets: getHqBudgets_(ss),
+    categoryOptions: getCategoryOptions_(ss),
+    approvalEmails: getApprovalEmails_(ss)
+  };
+}
+
+// 管理者専用エンドポイント：管理者コードが一致した場合のみ設定を保存する
+function saveAdminSettings(ss, d) {
+  if (!checkAdminCode_(ss, d.code)) return { error: '権限がありません' };
+  if (typeof d.hqBudgets !== 'undefined') writeSetting(ss, 'hqBudgets', JSON.stringify(d.hqBudgets));
+  if (typeof d.categoryOptions !== 'undefined') writeSetting(ss, 'categoryOptions', JSON.stringify(d.categoryOptions));
+  if (typeof d.approvalEmails !== 'undefined') writeSetting(ss, 'approvalEmails', JSON.stringify(d.approvalEmails));
+  return { success: true };
+}
+
+// 管理者コードの検証のみ行う（管理者モードのログイン時に使用）
+function verifyAdminCode(ss, d) {
+  return { valid: checkAdminCode_(ss, d.code) };
+}
+
+// 管理者コードの変更（現在のコードが正しい場合のみ）
+function changeAdminCode(ss, d) {
+  if (!checkAdminCode_(ss, d.code)) return { error: '権限がありません' };
+  const nw = String(d.newCode || '').trim();
+  if (!nw) return { error: '新しいコードを入力してください' };
+  writeSetting(ss, 'adminCode', nw);
+  return { success: true };
 }
 
 function getProjects(ss) {
@@ -3110,7 +3275,7 @@ function addProject(ss, d) {
   const now = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
   sh.appendRow([id, d.name, d.desc, d.applicant, (d.members||[]).join(','), d.budget, JSON.stringify(d.expenses||[]), 'pending','','','', d.budget, 0, now, d.period||'', d.category||'', d.pNumber||'', d.budgetFirst||0, d.budgetSecond||0]);
   var emailErr = sendApprovalEmails(
-    d.approvalEmails || [],
+    getApprovalEmails_(ss),
     '【承認依頼】PJ新規申請：' + d.name,
     'PJ新規申請の承認をお願いします。\\n\\n' +
     '■ プロジェクト名：' + d.name + '\\n' +
@@ -3163,7 +3328,7 @@ function addRevisionRequest(ss, d) {
   const amountSecond = Number(d.amountSecond) || 0;
   hSh.appendRow([hId, d.projectId, 'revision_request', d.amount, reasonWithType, '', d.applicant||'', now, 'pending', '', budgetBefore, budgetAfter, amountFirst, amountSecond]);
   var emailErr = sendApprovalEmails(
-    d.approvalEmails || [],
+    getApprovalEmails_(ss),
     '【承認依頼】予算変更申請：' + projName,
     '予算変更申請の承認をお願いします。\\n\\n' +
     '■ プロジェクト名：' + projName + '\\n' +
@@ -3396,11 +3561,8 @@ function testEmail(ss, d) {
   // PJ編集の削除済み表示設定を反映
   const pjChk = document.getElementById('pjedit-hide-deleted');
   if (pjChk) pjChk.checked = !!cfg.hideDeletedInPjEdit;
-  // 分類候補設定を反映
-  renderCategoryOptionSettings();
-  populateCategorySelects();
-  // メール配信先設定を反映
-  renderApprovalEmailSettings();
+  // 分類候補設定を反映（全員が使うため公開エンドポイントから取得）
+  loadPublicSettings();
   // Teamsパラメータ解析
   parseTeamsParams();
   // ユーザー表示に反映
@@ -3421,6 +3583,7 @@ function testEmail(ss, d) {
       applyMode();
       // モード選択モーダルは表示せず、最初のタブを開く
       showSection('apply');
+      if (appMode === 'admin') loadAdminSettings();
     } else {
       // モード未指定 → モーダルを表示して選択を促す
       document.getElementById('mode-select-modal').style.display = 'flex';
