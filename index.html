@@ -442,6 +442,15 @@ code { background: #f5f5f3; padding: 1px 6px; border-radius: 4px; font-family: m
       </div>
       <label>メールアドレス（1行に1件）</label>
       <textarea id="approval-emails" rows="5" placeholder="例: approver@example.com&#10;manager@example.com" style="width:100%;min-height:110px;box-sizing:border-box"></textarea>
+      <hr class="divider">
+      <label>メール文面に記載するアプリURL（任意）</label>
+      <div style="font-size:12px;color:#666;margin-bottom:6px">承認依頼メールの末尾に、このURLへのリンクを追記します。ウェブサーバーを変更した場合はここを更新するだけで反映されます。</div>
+      <input type="text" id="app-url" placeholder="例: https://ユーザー名.github.io/リポジトリ名/" style="width:100%;box-sizing:border-box">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+        <button class="btn btn-primary" onclick="saveAppUrl()"><i class="ti ti-device-floppy"></i> URLを保存</button>
+      </div>
+      <div id="app-url-msg" style="margin-top:8px"></div>
+      <hr class="divider">
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
         <button class="btn" id="test-email-btn" onclick="sendTestEmail()"><i class="ti ti-mail-forward"></i> テスト送信</button>
         <button class="btn btn-primary" onclick="saveApprovalEmails()"><i class="ti ti-device-floppy"></i> 保存</button>
@@ -613,7 +622,7 @@ if (typeof cfg.searchAllYears === 'undefined') cfg.searchAllYears = false;
 if (typeof cfg.hideDeletedInPjEdit === 'undefined') cfg.hideDeletedInPjEdit = true;
 // ⑧各種設定（本部予算・分類候補・承認メール配信先）はGoogleスプレッドシート側で管理し、
 // ブラウザのlocalStorageには保存しない（全員で共有し、管理者のみ参照可能にするため）
-let adminSettings = { hqBudgets: {}, categoryOptions: [], approvalEmails: [] };
+let adminSettings = { hqBudgets: {}, categoryOptions: [], approvalEmails: [], appUrl: '' };
 
 var projects = [];
 let members = [];
@@ -693,6 +702,7 @@ async function loadAdminSettings() {
     adminSettings.hqBudgets = (res && res.hqBudgets) || {};
     adminSettings.categoryOptions = (res && res.categoryOptions) || [];
     adminSettings.approvalEmails = (res && res.approvalEmails) || [];
+    adminSettings.appUrl = (res && res.appUrl) || '';
   } catch(e) {
     console.error('loadAdminSettings error', e);
   }
@@ -700,7 +710,28 @@ async function loadAdminSettings() {
   renderCategoryOptionSettings();
   populateCategorySelects();
   renderApprovalEmailSettings();
+  renderAppUrlSetting();
   renderSummary();
+}
+
+function renderAppUrlSetting() {
+  const input = document.getElementById('app-url');
+  if (!input) return;
+  input.value = adminSettings.appUrl || '';
+}
+
+async function saveAppUrl() {
+  const input = document.getElementById('app-url');
+  if (!input) return;
+  const url = input.value.trim();
+  try {
+    await gasRequest('saveAdminSettings', { code: cfg.approvalCode, appUrl: url });
+    adminSettings.appUrl = url;
+    renderAppUrlSetting();
+    showMsg('app-url-msg','success','アプリURLを保存しました');
+  } catch(e) {
+    showMsg('app-url-msg','error','保存に失敗しました: ' + e.message);
+  }
 }
 
 function getApprovalEmails() {
@@ -3203,6 +3234,11 @@ function getHqBudgets_(ss) {
   try { return map.hqBudgets ? JSON.parse(map.hqBudgets) : {}; } catch (e) { return {}; }
 }
 
+function getAppUrl_(ss) {
+  const map = readSettingsMap(ss);
+  return map.appUrl || '';
+}
+
 // 公開エンドポイント：分類候補のみ返す（権限チェックなし。①申請フォーム用）
 function getPublicSettings(ss) {
   return { categoryOptions: getCategoryOptions_(ss) };
@@ -3214,7 +3250,8 @@ function getAdminSettings(ss, d) {
   return {
     hqBudgets: getHqBudgets_(ss),
     categoryOptions: getCategoryOptions_(ss),
-    approvalEmails: getApprovalEmails_(ss)
+    approvalEmails: getApprovalEmails_(ss),
+    appUrl: getAppUrl_(ss)
   };
 }
 
@@ -3224,6 +3261,7 @@ function saveAdminSettings(ss, d) {
   if (typeof d.hqBudgets !== 'undefined') writeSetting(ss, 'hqBudgets', JSON.stringify(d.hqBudgets));
   if (typeof d.categoryOptions !== 'undefined') writeSetting(ss, 'categoryOptions', JSON.stringify(d.categoryOptions));
   if (typeof d.approvalEmails !== 'undefined') writeSetting(ss, 'approvalEmails', JSON.stringify(d.approvalEmails));
+  if (typeof d.appUrl !== 'undefined') writeSetting(ss, 'appUrl', String(d.appUrl));
   return { success: true };
 }
 
@@ -3274,6 +3312,7 @@ function addProject(ss, d) {
   const id = rows;
   const now = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
   sh.appendRow([id, d.name, d.desc, d.applicant, (d.members||[]).join(','), d.budget, JSON.stringify(d.expenses||[]), 'pending','','','', d.budget, 0, now, d.period||'', d.category||'', d.pNumber||'', d.budgetFirst||0, d.budgetSecond||0]);
+  var appUrl = getAppUrl_(ss);
   var emailErr = sendApprovalEmails(
     getApprovalEmails_(ss),
     '【承認依頼】PJ新規申請：' + d.name,
@@ -3285,7 +3324,8 @@ function addProject(ss, d) {
     '■ 分類：' + (d.category||'') + '\\n' +
     '■ 希望予算：' + Number(d.budget).toLocaleString() + '円' +
     '（上期：' + Number(d.budgetFirst||0).toLocaleString() + '円 / 下期：' + Number(d.budgetSecond||0).toLocaleString() + '円）\\n\\n' +
-    '承認はアプリの⑤承認タブから行ってください。'
+    '承認はアプリの⑤承認タブから行ってください。' +
+    (appUrl ? '\\n■ アプリURL：' + appUrl : '')
   );
   return {success: true, id: id, emailError: emailErr};
 }
@@ -3327,6 +3367,7 @@ function addRevisionRequest(ss, d) {
   const amountFirst  = Number(d.amountFirst)  || 0;
   const amountSecond = Number(d.amountSecond) || 0;
   hSh.appendRow([hId, d.projectId, 'revision_request', d.amount, reasonWithType, '', d.applicant||'', now, 'pending', '', budgetBefore, budgetAfter, amountFirst, amountSecond]);
+  var appUrl = getAppUrl_(ss);
   var emailErr = sendApprovalEmails(
     getApprovalEmails_(ss),
     '【承認依頼】予算変更申請：' + projName,
@@ -3337,7 +3378,8 @@ function addRevisionRequest(ss, d) {
     '■ 変更額：' + Number(d.amount).toLocaleString() + '円' +
     '（上期：' + Number(amountFirst).toLocaleString() + '円 / 下期：' + Number(amountSecond).toLocaleString() + '円）\\n' +
     '■ 変更理由：' + (d.reason||'') + '\\n\\n' +
-    '承認はアプリの⑤承認タブから行ってください。'
+    '承認はアプリの⑤承認タブから行ってください。' +
+    (appUrl ? '\\n■ アプリURL：' + appUrl : '')
   );
   return { success: true, emailError: emailErr };
 }
@@ -3480,10 +3522,12 @@ function authorizeMailApp() {
 
 function testEmail(ss, d) {
   var emails = d.emails || [];
+  var appUrl = getAppUrl_(ss);
   var emailErr = sendApprovalEmails(
     emails,
     '【テスト】承認依頼メール設定の確認',
-    'これはテストメールです。\\nPJ予算管理アプリの承認依頼メール設定が正常に機能しています。'
+    'これはテストメールです。\\nPJ予算管理アプリの承認依頼メール設定が正常に機能しています。' +
+    (appUrl ? '\\n\\n■ アプリURL：' + appUrl : '')
   );
   return { success: !emailErr, emailError: emailErr };
 }`;
