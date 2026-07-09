@@ -1588,8 +1588,41 @@ function renderBudgetList() {
     '<div style="display:flex;gap:8px;justify-content:flex-end">' +
     '<button class="btn" onclick="openDetailModal(' + p.id + ')"><i class="ti ti-list"></i> 使用履歴</button>' +
     '<button class="btn btn-primary" onclick="openBudgetModal(' + p.id + ')"><i class="ti ti-edit"></i> 使用登録</button>' +
-    '</div></div>';
+    '</div></div>' +
+    renderExpenseScheduleCard(p);
   el.innerHTML = html;
+}
+
+// ①PJ新規申請時に登録した「支払予定項目」を②予算使用タブに表示するカード
+function renderExpenseScheduleCard(p) {
+  const expenses = p.expenses || [];
+  if (expenses.length === 0) return '';
+  const splitName = (raw) => {
+    const s = String(raw || '');
+    const idx = s.indexOf(':');
+    return idx >= 0 ? s.slice(idx + 1) : s;
+  };
+  const rows = expenses.map(e => {
+    const half = esc(e.half || '');
+    const name = esc(splitName(e.name));
+    const amount = Number(e.amount) || 0;
+    return '<tr>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #f5f5f3">' + half + '</td>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #f5f5f3">' + name + '</td>' +
+      '<td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f3">¥' + amount.toLocaleString() + '</td>' +
+      '</tr>';
+  }).join('');
+  const total = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  return '<div class="card" style="margin-top:12px">' +
+    '<div class="card-title"><i class="ti ti-receipt-2"></i> 支払予定項目（①PJ新規申請時登録）</div>' +
+    '<table style="width:100%;font-size:13px;border-collapse:collapse">' +
+    '<thead><tr>' +
+    '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">期</th>' +
+    '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">項目名</th>' +
+    '<th style="text-align:right;padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#999;font-size:12px">金額</th>' +
+    '</tr></thead><tbody>' + rows +
+    '<tr style="font-weight:500;background:#f8f8f7"><td style="padding:6px 8px" colspan="2">合計</td><td style="text-align:right;padding:6px 8px">¥' + total.toLocaleString() + '</td></tr>' +
+    '</tbody></table></div>';
 }
 
 function openBudgetModal(id) {
@@ -2343,10 +2376,10 @@ function renderSummary() {
     const F = E + C;                                   // 本部予算含めた残額
     document.getElementById('summary-metrics').innerHTML =
       '<div class="metric"><div class="metric-label">A 本部予算</div><div class="metric-value">¥'+A.toLocaleString()+'</div></div>' +
-      '<div class="metric"><div class="metric-label">B PJ予算合計</div><div class="metric-value">¥'+B.toLocaleString()+'</div></div>' +
-      '<div class="metric"><div class="metric-label">C 未設定予算（A−B）</div><div class="metric-value">¥'+C.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">B PJ割当済み予算合計</div><div class="metric-value">¥'+B.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">C PJ未設定予算（A−B）</div><div class="metric-value">¥'+C.toLocaleString()+'</div></div>' +
       '<div class="metric"><div class="metric-label">D 使用済み総額</div><div class="metric-value">¥'+D.toLocaleString()+'</div></div>' +
-      '<div class="metric"><div class="metric-label">E 全PJの残額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">E 全PJの未使用総額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
       '<div class="metric" style="background:#fff0f3"><div class="metric-label">F 本部全体の残額（E＋C）</div><div class="metric-value">¥'+F.toLocaleString()+'</div></div>';
     document.getElementById('summary-table').innerHTML =
       '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th>P#</th><th>申請者</th><th class="tr">上期予算</th><th class="tr">下期予算</th><th class="tr">年次予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th></tr></thead><tbody>'+rows+'</tbody></table>';
@@ -2391,10 +2424,10 @@ function renderSummary() {
     const F = E + C;                                   // 本部予算含めた残額
     document.getElementById('summary-metrics').innerHTML =
       '<div class="metric"><div class="metric-label">A 本部予算</div><div class="metric-value">¥'+A.toLocaleString()+'</div></div>' +
-      '<div class="metric"><div class="metric-label">B PJ予算合計</div><div class="metric-value">¥'+B.toLocaleString()+'</div></div>' +
-      '<div class="metric"><div class="metric-label">C 未設定予算（A−B）</div><div class="metric-value">¥'+C.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">B PJ割当済み予算合計</div><div class="metric-value">¥'+B.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">C PJ未設定予算（A−B）</div><div class="metric-value">¥'+C.toLocaleString()+'</div></div>' +
       '<div class="metric"><div class="metric-label">D 使用済み総額</div><div class="metric-value">¥'+D.toLocaleString()+'</div></div>' +
-      '<div class="metric"><div class="metric-label">E 全PJの残額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">E 全PJの未使用総額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
       '<div class="metric" style="background:#fff0f3"><div class="metric-label">F 本部全体の残額（E＋C）</div><div class="metric-value">¥'+F.toLocaleString()+'</div></div>';
     document.getElementById('summary-table').innerHTML =
       '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th>P#</th><th class="tr">予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th></tr></thead><tbody>'+rows+'</tbody></table>';
@@ -2433,10 +2466,10 @@ function renderSummary() {
     const F = E + C;                                               // 本部予算含めた残額
     document.getElementById('summary-metrics').innerHTML =
       '<div class="metric"><div class="metric-label">A 本部予算（'+label+'）</div><div class="metric-value">¥'+A.toLocaleString()+'</div></div>' +
-      '<div class="metric"><div class="metric-label">B PJ予算合計</div><div class="metric-value">¥'+B.toLocaleString()+'</div></div>' +
-      '<div class="metric"><div class="metric-label">C 未設定予算（A−B）</div><div class="metric-value">¥'+C.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">B PJ割当済み予算合計</div><div class="metric-value">¥'+B.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">C PJ未設定予算（A−B）</div><div class="metric-value">¥'+C.toLocaleString()+'</div></div>' +
       '<div class="metric"><div class="metric-label">D 使用済み総額</div><div class="metric-value">¥'+D.toLocaleString()+'</div></div>' +
-      '<div class="metric"><div class="metric-label">E 全PJの残額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
+      '<div class="metric"><div class="metric-label">E 全PJの未使用総額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
       '<div class="metric" style="background:#fff0f3"><div class="metric-label">F 本部全体の残額（E＋C）</div><div class="metric-value">¥'+F.toLocaleString()+'</div></div>';
     document.getElementById('summary-table').innerHTML =
       '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th>P#</th><th class="tr">'+label+'予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th></tr></thead><tbody>'+rows+'</tbody></table>';
