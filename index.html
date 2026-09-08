@@ -61,6 +61,7 @@ textarea { resize: vertical; min-height: 72px; }
 .tag-x { cursor: pointer; color: #bbb; line-height: 1; }
 .tag-x:hover { color: #e74c3c; }
 .tag-in { border: none; outline: none; background: transparent; font-size: 14px; color: #1a1a1a; min-width: 80px; flex: 1; font-family: inherit; }
+.tag-pct { width: 40px !important; padding: 1px 2px !important; border: 1px solid #ddd !important; border-radius: 4px !important; font-size: 12px !important; text-align: right; background: #fff !important; }
 .history-item { font-size: 13px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; display: flex; gap: 8px; }
 .history-item:last-child { border-bottom: none; }
 .history-date { color: #bbb; min-width: 115px; font-size: 12px; flex-shrink: 0; }
@@ -142,7 +143,7 @@ code { background: #f5f5f3; padding: 1px 6px; border-radius: 4px; font-family: m
       <select id="proj-category"></select>
       <label>P#</label>
       <input type="text" id="proj-number" placeholder="P#を入力">
-      <label>メンバー（入力後Enterで追加）</label>
+      <label>メンバー（入力後Enterで追加、稼働工数(%)は追加後に編集できます）</label>
       <div class="tag-wrap" id="member-wrap" onclick="document.getElementById('member-in').focus()">
         <input class="tag-in" id="member-in" placeholder="氏名を入力..." onkeydown="addMember(event)">
       </div>
@@ -790,6 +791,15 @@ function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// メンバー配列（{name, pct}）を表示用文字列に整形する
+function formatMembers(list) {
+  if (!Array.isArray(list) || list.length === 0) return '';
+  return list.map(function(m){
+    if (m && typeof m === 'object') return esc(m.name) + '（' + (m.pct != null ? m.pct : 100) + '%）';
+    return esc(m);
+  }).join(', ');
+}
+
 // アプリの現在モード: 'general' or 'admin'
 let appMode = null;
 let teamsContext = { enabled: false, team: '', channel: '', user: '' };
@@ -1241,18 +1251,29 @@ function addMember(e) {
   if (e.key !== 'Enter') return;
   const v = e.target.value.trim();
   if (!v) return;
-  members.push(v);
+  members.push({ name: v, pct: 100 });
   const tag = document.createElement('div');
   tag.className = 'tag';
   tag.dataset.name = v;
-  tag.innerHTML = esc(v) + '<span class="tag-x" onclick="removeMember(this)"> ×</span>';
+  tag.innerHTML = esc(v) +
+    '<input type="number" class="tag-pct" value="100" min="1" max="100" onclick="event.stopPropagation()" onchange="updateMemberPct(this)"> %' +
+    '<span class="tag-x" onclick="removeMember(this)"> ×</span>';
   document.getElementById('member-wrap').insertBefore(tag, e.target);
   e.target.value = '';
 }
 function removeMember(el) {
   const name = el.parentElement.dataset.name;
-  members = members.filter(m => m !== name);
+  members = members.filter(m => m.name !== name);
   el.parentElement.remove();
+}
+function updateMemberPct(el) {
+  const name = el.parentElement.dataset.name;
+  let pct = parseInt(el.value, 10);
+  if (isNaN(pct) || pct < 1) pct = 1;
+  if (pct > 100) pct = 100;
+  el.value = pct;
+  const m = members.find(m => m.name === name);
+  if (m) m.pct = pct;
 }
 
 function calcExpTotal() {
@@ -1472,7 +1493,7 @@ function renderApproveList() {
     '<span class="detail-label">P#</span><span>' + esc(p.pNumber||'—') + '</span>' +
     '<span class="detail-label">申請日</span><span>' + fmtDate(p.appliedAt) + '</span>' +
     '<span class="detail-label">活動内容</span><span>' + esc(p.desc) + '</span>' +
-    '<span class="detail-label">メンバー</span><span>' + esc((p.members||[]).join(', ')||'未設定') + '</span>' +
+    '<span class="detail-label">メンバー</span><span>' + (formatMembers(p.members)||'未設定') + '</span>' +
     '<span class="detail-label">上期予算</span><span>¥' + calcHalfAmounts(p).firstBudget.toLocaleString() + '</span>' +
     '<span class="detail-label">下期予算</span><span>¥' + calcHalfAmounts(p).secondBudget.toLocaleString() + '</span>' +
     (exps ? '<span class="detail-label">支払予定</span><span>' + exps + '</span>' : '') +
@@ -1572,7 +1593,7 @@ function openApproveModal(id) {
     '<span class="detail-label">申請者</span><span>' + esc(p.applicant) + '</span>' +
     '<span class="detail-label">申請日</span><span>' + fmtDate(p.appliedAt) + '</span>' +
     '<span class="detail-label">活動内容</span><span>' + esc(p.desc) + '</span>' +
-    '<span class="detail-label">メンバー</span><span>' + esc((p.members||[]).join(', ')||'未設定') + '</span>' +
+    '<span class="detail-label">メンバー</span><span>' + (formatMembers(p.members)||'未設定') + '</span>' +
     '<span class="detail-label">希望予算</span><span>¥' + Number(p.budget).toLocaleString() + '</span>' +
     (exps ? '<span class="detail-label">支払予定</span><span>' + esc(exps) + '</span>' : '') +
     '</div>';
@@ -2875,7 +2896,9 @@ function renderPjEditForm() {
   const allPjs = window.allProjects || projects;
   const p = allPjs.find(x => x.id == selectedPjEditProjId);
   if (!p) return;
-  pjeditMembers = [...(p.members||[])];
+  pjeditMembers = (p.members||[]).map(function(m){
+    return (m && typeof m === 'object') ? { name: m.name, pct: m.pct != null ? m.pct : 100 } : { name: m, pct: 100 };
+  });
 
   // 編集履歴
   const editHist = (p.budgetHistory||[]).filter(h => h.type === 'pj_edit' || h.type === 'pj_delete');
@@ -2904,7 +2927,8 @@ function renderPjEditForm() {
 
   // メンバータグ
   const memberTagsHtml = pjeditMembers.map(m =>
-    '<div class="tag" data-name="'+esc(m)+'">'+esc(m)+
+    '<div class="tag" data-name="'+esc(m.name)+'">'+esc(m.name)+
+    '<input type="number" class="tag-pct" value="'+esc(m.pct!=null?m.pct:100)+'" min="1" max="100" onclick="event.stopPropagation()" onchange="updatePjEditMemberPct(this)"> %' +
     '<span class="tag-x" onclick="removePjEditMember(this)"> ×</span></div>'
   ).join('');
 
@@ -2922,7 +2946,7 @@ function renderPjEditForm() {
     '<select id="pjedit-category" data-selected="'+esc(p.category||'')+'"></select>' +
     '<label>P#</label>' +
     '<input type="text" id="pjedit-number" value="'+esc(p.pNumber||'')+'">' +
-    '<label>メンバー（入力後Enterで追加）</label>' +
+    '<label>メンバー（入力後Enterで追加、稼働工数(%)は追加後に編集できます）</label>' +
     '<div class="tag-wrap" id="pjedit-member-wrap" onclick="document.getElementById(&quot;pjedit-member-in&quot;).focus()">' +
     memberTagsHtml +
     '<input class="tag-in" id="pjedit-member-in" placeholder="氏名を入力..." onkeydown="addPjEditMember(event)">' +
@@ -2974,19 +2998,31 @@ function addPjEditMember(e) {
   if (e.key !== 'Enter') return;
   const v = e.target.value.trim();
   if (!v) return;
-  pjeditMembers.push(v);
+  pjeditMembers.push({ name: v, pct: 100 });
   const tag = document.createElement('div');
   tag.className = 'tag';
   tag.dataset.name = v;
-  tag.innerHTML = esc(v) + '<span class="tag-x" onclick="removePjEditMember(this)"> ×</span>';
+  tag.innerHTML = esc(v) +
+    '<input type="number" class="tag-pct" value="100" min="1" max="100" onclick="event.stopPropagation()" onchange="updatePjEditMemberPct(this)"> %' +
+    '<span class="tag-x" onclick="removePjEditMember(this)"> ×</span>';
   document.getElementById('pjedit-member-wrap').insertBefore(tag, e.target);
   e.target.value = '';
 }
 
 function removePjEditMember(el) {
   const name = el.parentElement.dataset.name;
-  pjeditMembers = pjeditMembers.filter(m => m !== name);
+  pjeditMembers = pjeditMembers.filter(m => m.name !== name);
   el.parentElement.remove();
+}
+
+function updatePjEditMemberPct(el) {
+  const name = el.parentElement.dataset.name;
+  let pct = parseInt(el.value, 10);
+  if (isNaN(pct) || pct < 1) pct = 1;
+  if (pct > 100) pct = 100;
+  el.value = pct;
+  const m = pjeditMembers.find(m => m.name === name);
+  if (m) m.pct = pct;
 }
 
 function confirmDeleteProject() {
@@ -3279,6 +3315,26 @@ function changeAdminCode(ss, d) {
   return { success: true };
 }
 
+// メンバーは「氏名:稼働工数%」をカンマ区切りで1セルに保存する（例: 田中太郎:50,鈴木一郎:100）
+// 稼働工数が付いていない旧データは100%として扱う
+function decodeMembers_(str) {
+  if (!str) return [];
+  return String(str).split(',').filter(function(s){ return s !== ''; }).map(function(tok){
+    var idx = tok.lastIndexOf(':');
+    if (idx > -1) {
+      var pct = parseInt(tok.slice(idx + 1), 10);
+      if (!isNaN(pct)) return { name: tok.slice(0, idx), pct: pct };
+    }
+    return { name: tok, pct: 100 };
+  });
+}
+function encodeMembers_(members) {
+  return (members || []).map(function(m){
+    if (m && typeof m === 'object') return String(m.name || '') + ':' + (m.pct != null ? m.pct : 100);
+    return String(m || '') + ':100';
+  }).join(',');
+}
+
 function getProjects(ss) {
   const pSh = getSheet(ss, 'projects', ['id','name','desc','applicant','members','budget','expenses','status','approvedBy','approvedAt','approveComment','currentBudget','usedAmount','appliedAt','period','category','pNumber','budgetFirst','budgetSecond']);
   const hSh = getSheet(ss, 'history', ['id','projectId','type','amount','reason','approver','user','date']);
@@ -3289,7 +3345,7 @@ function getProjects(ss) {
   const hRows = hData.length > 1 ? hData.slice(1) : [];
   return pRows.map(r => ({
     id: r[0], name: r[1], desc: r[2], applicant: r[3],
-    members: r[4] ? String(r[4]).split(',') : [],
+    members: decodeMembers_(r[4]),
     budget: r[5],
     expenses: r[6] ? JSON.parse(r[6]) : [],
     status: r[7], approvedBy: r[8], approvedAt: r[9], approveComment: r[10],
@@ -3311,7 +3367,7 @@ function addProject(ss, d) {
   const rows = sh.getLastRow();
   const id = rows;
   const now = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
-  sh.appendRow([id, d.name, d.desc, d.applicant, (d.members||[]).join(','), d.budget, JSON.stringify(d.expenses||[]), 'pending','','','', d.budget, 0, now, d.period||'', d.category||'', d.pNumber||'', d.budgetFirst||0, d.budgetSecond||0]);
+  sh.appendRow([id, d.name, d.desc, d.applicant, encodeMembers_(d.members), d.budget, JSON.stringify(d.expenses||[]), 'pending','','','', d.budget, 0, now, d.period||'', d.category||'', d.pNumber||'', d.budgetFirst||0, d.budgetSecond||0]);
   var appUrl = getAppUrl_(ss);
   var emailErr = sendApprovalEmails(
     getApprovalEmails_(ss),
@@ -3455,12 +3511,12 @@ function updateProjectInfo(ss, d) {
     if (String(pData[i][0]) === String(d.id)) {
       // 変更前の値を記録
       var before = [pData[i][1], pData[i][2], pData[i][3], pData[i][4], pData[i][14], pData[i][15], pData[i][16]].join('|');
-      var after  = [d.name, d.desc, d.applicant, (d.members||[]).join(','), d.period||'', d.category||'', d.pNumber||''].join('|');
+      var after  = [d.name, d.desc, d.applicant, encodeMembers_(d.members), d.period||'', d.category||'', d.pNumber||''].join('|');
       // プロジェクト情報を更新
       pSh.getRange(i+1, 2).setValue(d.name);
       pSh.getRange(i+1, 3).setValue(d.desc);
       pSh.getRange(i+1, 4).setValue(d.applicant);
-      pSh.getRange(i+1, 5).setValue((d.members||[]).join(','));
+      pSh.getRange(i+1, 5).setValue(encodeMembers_(d.members));
       pSh.getRange(i+1, 15).setValue(d.period||'');
       pSh.getRange(i+1, 16).setValue(d.category||'');
       pSh.getRange(i+1, 17).setValue(d.pNumber||'');
