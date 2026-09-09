@@ -2534,7 +2534,7 @@ function getProjYear(p) {
 
 // 指定されたセレクタから年を取得して、他の年セレクタに同期する
 function syncYearFrom(sourceId) {
-  const ids = ['approve-year','budget-year','revision-year','history-year','summary-year','pjedit-year','proj-year'];
+  const ids = ['approve-year','budget-year','revision-year','history-year','summary-year','pjedit-year','proj-year','costlist-year'];
   const src = document.getElementById(sourceId);
   if (!src) return;
   const val = src.value || '';
@@ -2548,6 +2548,11 @@ function syncYearFrom(sourceId) {
   if (sy) {
     summaryYear = sy.value || '';
     onSummaryYearChange();
+  }
+  // costlistYear も更新
+  const cy = document.getElementById('costlist-year');
+  if (cy) {
+    costlistYear = cy.value || '';
   }
   // 再描画
   renderAll();
@@ -3863,7 +3868,7 @@ function testEmail(ss, d) {
 
   // 現在年を各セクションの年選択の初期値にセット
   const currentYear = String(new Date().getFullYear());
-  ['approve-year','budget-year','revision-year','history-year','summary-year','pjedit-year'].forEach(function(id) {
+  ['approve-year','budget-year','revision-year','history-year','summary-year','pjedit-year','costlist-year'].forEach(function(id) {
     const sel = document.getElementById(id);
     if (!sel) return;
     // optionが存在する場合のみセット
@@ -3879,9 +3884,12 @@ function testEmail(ss, d) {
       if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
     });
   }
+  // ⑦ costlist-year の初期値をcostlistYearに反映
+  const costYearSel = document.getElementById('costlist-year');
+  if (costYearSel && costYearSel.value) costlistYear = costYearSel.value;
 
   // 年セレクタの同期バインド（タブ間で年度を同期する）
-  ['approve-year','budget-year','revision-year','history-year','summary-year','pjedit-year','proj-year'].forEach(function(id) {
+  ['approve-year','budget-year','revision-year','history-year','summary-year','pjedit-year','proj-year','costlist-year'].forEach(function(id) {
     const sel = document.getElementById(id);
     if (!sel) return;
     sel.addEventListener('change', function(){ syncYearFrom(id); });
