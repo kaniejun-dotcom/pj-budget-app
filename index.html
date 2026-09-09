@@ -2719,7 +2719,7 @@ function renderSummary() {
     }).join('');
     const totPct = totalBudget > 0 ? Math.round(totalUsed/totalBudget*100) : 0;
     rows += '<tr class="tfoot"><td colspan="2">合計</td>' +
-      '<td class="tr">—</td><td class="tr">—</td>' +
+      '<td class="tr">—</td><td class="tr">—</td><td class="tr">—</td>' +
       '<td class="tr">¥'+totalBudget.toLocaleString()+'</td>' +
       '<td class="tr">¥'+totalUsed.toLocaleString()+'</td>' +
       '<td class="tr">¥'+totalRemain.toLocaleString()+'</td>' +
@@ -2769,7 +2769,7 @@ function renderSummary() {
         '<td class="tr" style="font-weight:500'+(rem<0?';color:#e74c3c':'')+'">¥'+rem.toLocaleString()+'</td><td class="tr" style="font-weight:500">'+pctT+'%</td></tr>';
     }).join('');
     const totPct = totalBudget > 0 ? Math.round(totalUsed/totalBudget*100) : 0;
-    rows += '<tr class="tfoot"><td colspan="2">合計</td>' +
+    rows += '<tr class="tfoot"><td colspan="2">合計</td><td class="tr">—</td>' +
       '<td class="tr">¥'+totalBudget.toLocaleString()+'</td><td class="tr">¥'+totalUsed.toLocaleString()+'</td>' +
       '<td class="tr">¥'+totalRemain.toLocaleString()+'</td><td class="tr">'+totPct+'%</td><td class="tr">—</td></tr>';
     // A〜F を計算して表示（通期）
@@ -2788,7 +2788,7 @@ function renderSummary() {
       '<div class="metric"><div class="metric-label">E 全PJの未使用総額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
       '<div class="metric" style="background:#fff0f3"><div class="metric-label">F 本部全体の残額（E＋C）</div><div class="metric-value">¥'+F.toLocaleString()+'</div></div>';
     document.getElementById('summary-table').innerHTML =
-      '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th class="tr">予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th><th>P#</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th></th><th class="tr">予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th><th>P#</th></tr></thead><tbody>'+rows+'</tbody></table>';
 
   } else {
     // 上期 or 下期
