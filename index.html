@@ -81,6 +81,8 @@ textarea { resize: vertical; min-height: 72px; }
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px; }
 .section-heading { font-size: 16px; font-weight: 500; }
 table { width: 100%; font-size: 13px; border-collapse: collapse; }
+#summary-table, #costlist-table { overflow-x: auto; }
+#summary-table table, #costlist-table table { white-space: nowrap; }
 th { text-align: left; padding: 8px 10px; font-size: 12px; font-weight: 500; color: #999; border-bottom: 1px solid #f0f0f0; }
 td { padding: 10px; border-bottom: 1px solid #f5f5f3; vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
@@ -112,6 +114,7 @@ code { background: #f5f5f3; padding: 1px 6px; border-radius: 4px; font-family: m
     <button id="nav-summary" class="nav-btn" onclick="showSection('summary')">⑥ 集計管理</button>
     <button id="nav-history" class="nav-btn" onclick="showSection('history')">⑦ 各種履歴</button>
     <button id="nav-hqbudget" class="nav-btn" onclick="showSection('hqbudget')">⑧各種設定</button>
+    <button id="nav-costlist" class="nav-btn" onclick="showSection('costlist')">⑨原価一覧</button>
     <button id="nav-admin" class="nav-btn" onclick="showSection('admin')"><i class="ti ti-settings"></i></button>
   </nav>
   <div id="header-user" style="margin-left:12px;display:flex;flex-direction:column;align-items:flex-end">
@@ -460,6 +463,35 @@ code { background: #f5f5f3; padding: 1px 6px; border-radius: 4px; font-family: m
     </div>
   </div>
 
+  <!-- ⑨ 原価一覧 -->
+  <div class="section" id="sec-costlist">
+    <div class="section-header">
+      <div class="section-heading">プロジェクト原価一覧</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex;gap:2px;border:1px solid #ddd;border-radius:8px;overflow:hidden" id="costlist-period-tabs">
+          <button class="btn" id="costlist-tab-year"   onclick="setCostListView('year')"   style="border:none;border-radius:0;padding:6px 14px">年次</button>
+          <button class="btn" id="costlist-tab-first"  onclick="setCostListView('first')"  style="border:none;border-left:1px solid #ddd;border-radius:0;padding:6px 14px">上期</button>
+          <button class="btn" id="costlist-tab-second" onclick="setCostListView('second')" style="border:none;border-left:1px solid #ddd;border-radius:0;padding:6px 14px">下期</button>
+        </div>
+        <button class="btn" onclick="loadProjects()"><i class="ti ti-refresh"></i> 更新</button>
+        <button class="btn" onclick="exportCostListCSV()"><i class="ti ti-download"></i> Excelエクスポート</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
+        <div style="width:200px">
+          <label>標準単価（時）</label>
+          <input type="text" inputmode="numeric" id="costlist-rate" placeholder="例：3,000" oninput="onCostRateInput(this)">
+        </div>
+        <div style="flex:1;min-width:220px">
+          <label>フィルタ</label>
+          <input type="text" id="costlist-filter" placeholder="プロジェクト名・申請者名・メンバー名で絞り込み" oninput="renderCostList()">
+        </div>
+      </div>
+      <div id="costlist-table"><div class="empty"><span class="spinner"></span> 読み込み中...</div></div>
+    </div>
+  </div>
+
   <!-- 管理者設定 -->
   <div class="section" id="sec-admin">
     <div class="section-header"><div class="section-heading">設定</div></div>
@@ -791,6 +823,17 @@ function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// 数値入力欄に3桁カンマ区切りを反映する（type="text"用。数字以外の文字は除去）
+function formatAmountInput(el) {
+  const digits = el.value.replace(/[^0-9]/g, '');
+  el.value = digits ? Number(digits).toLocaleString() : '';
+}
+
+// カンマ区切り済みの文字列を数値にする
+function parseAmountInput(v) {
+  return parseInt(String(v || '').replace(/,/g, ''), 10);
+}
+
 // メンバー配列（{name, pct}）を表示用文字列に整形する
 function formatMembers(list) {
   if (!Array.isArray(list) || list.length === 0) return '';
@@ -1082,6 +1125,7 @@ function renderAll() {
     else renderPjEditSearch();
   }
   if (sec === 'summary')  renderSummary();
+  if (sec === 'costlist') renderCostList();
 }
 
 /* ===== ② 承認 検索 ===== */
@@ -1218,7 +1262,7 @@ function clearBudgetSelection() {
 
 async function showSection(id) {
   // 一般モードでのアクセス制御
-  const restrictedTabs = ['approve','history','summary','hqbudget','admin'];
+  const restrictedTabs = ['approve','history','summary','hqbudget','admin','costlist'];
   if (appMode === 'general' && restrictedTabs.indexOf(id) !== -1) {
     const mw = document.getElementById('mode-warn');
     if (mw) mw.textContent = 'この機能は管理者モードのみ利用できます。';
@@ -1244,6 +1288,11 @@ async function showSection(id) {
   fillTeamsUserDefaults();
   // ①申請タブではカテゴリ選択肢を最新化する
   if (id === 'apply') populateCategorySelects();
+  // ⑨原価一覧タブでは保存済みの標準単価を反映する
+  if (id === 'costlist') {
+    const rateInput = document.getElementById('costlist-rate');
+    if (rateInput && cfg.costRate) rateInput.value = Number(cfg.costRate).toLocaleString();
+  }
   if (id !== 'apply' && id !== 'admin') await loadProjects();
 }
 
@@ -1282,7 +1331,7 @@ function calcExpTotal() {
     const sel  = row.querySelector('select');
     const inps = row.querySelectorAll('input');
     const half = sel ? sel.value : '上期';
-    const a    = parseInt(inps[1].value);
+    const a    = parseAmountInput(inps[1].value);
     if (!isNaN(a) && a > 0) {
       if (half === '下期') second += a;
       else first += a;
@@ -1334,7 +1383,7 @@ function addExpItem() {
   d.innerHTML =
     '<select style="width:80px" onchange="calcExpTotal()"><option value="上期"' + selFirst + '>上期</option><option value="下期"' + selSecond + '>下期</option></select>' +
     '<input type="text" placeholder="項目名（例：会議費）">' +
-    '<input type="number" placeholder="金額（円）" oninput="calcExpTotal()">' +
+    '<input type="text" inputmode="numeric" placeholder="金額（円）" oninput="formatAmountInput(this);calcExpTotal()">' +
     '<button class="btn btn-danger" style="padding:6px 10px" onclick="document.getElementById(\'' + id + '\').remove();calcExpTotal()"><i class="ti ti-trash"></i></button>';
   document.getElementById('exp-items').appendChild(d);
 }
@@ -1364,7 +1413,7 @@ async function submitProject() {
     const inps = row.querySelectorAll('input');
     const half = sel ? sel.value : '';
     const n    = inps[0].value.trim();
-    const a    = parseInt(inps[1].value);
+    const a    = parseAmountInput(inps[1].value);
     if (n && !isNaN(a)) expenses.push({ name: half + ':' + n, amount: a, half });
   });
   // 活動期間と支払項目の期の整合性チェック
@@ -2229,6 +2278,159 @@ async function submitRevision() {
   }
   btn.disabled = false;
   btn.innerHTML = '<i class="ti ti-send"></i> 修正申請する';
+}
+
+let costlistView = 'year';
+
+function setCostListView(v) {
+  costlistView = v;
+  renderCostList();
+}
+
+function onCostRateInput(el) {
+  formatAmountInput(el);
+  cfg.costRate = parseAmountInput(el.value) || 0;
+  saveCfg();
+  renderCostList();
+}
+
+// 活動期間文字列（例: "2026年4月〜9月"）から開始月・終了月を取得する
+function getPeriodMonths(p) {
+  const m = String(p && p.period || '').match(/(\d+)月〜(\d+)月/);
+  if (!m) return { start: 0, end: 0 };
+  return { start: parseInt(m[1], 10) || 0, end: parseInt(m[2], 10) || 0 };
+}
+
+// 活動期間のうち上期(1〜6月)・下期(7〜12月)に含まれる月数を数える
+function countHalfMonths(p) {
+  const { start, end } = getPeriodMonths(p);
+  let first = 0, second = 0;
+  if (start && end && start <= end) {
+    for (let m = start; m <= end; m++) {
+      if (m <= 6) first++;
+      else second++;
+    }
+  }
+  return { first, second };
+}
+
+// ⑨原価一覧：1プロジェクト分の原価指標を算出する
+// 社内原価 = 標準単価(時) × 140(月あたり標準稼働時間) × 平均稼働率 × メンバー数 × 活動月数
+// 社外原価 = PJの予算金額（該当期間分）、社外原価進捗率 = 使用済み予算 / 社外原価
+function computeCostRow(p, rate, view) {
+  const hs = calcHalfAmounts(p);
+  const halves = countHalfMonths(p);
+  const memberList = (p.members || []).map(function(m) {
+    return (m && typeof m === 'object') ? m : { name: m, pct: 100 };
+  });
+  const memberCount = memberList.length;
+  const avgPct = memberCount > 0
+    ? memberList.reduce(function(s, m) { return s + (m.pct != null ? Number(m.pct) : 100); }, 0) / memberCount
+    : 0;
+  const avgRate = avgPct / 100;
+
+  let months, extCost, used;
+  if (view === 'first') {
+    months = halves.first; extCost = hs.firstBudget; used = hs.firstUsed;
+  } else if (view === 'second') {
+    months = halves.second; extCost = hs.secondBudget; used = hs.secondUsed;
+  } else {
+    months = halves.first + halves.second; extCost = hs.firstBudget + hs.secondBudget; used = hs.firstUsed + hs.secondUsed;
+  }
+
+  const intCost = rate * 140 * avgRate * memberCount * months;
+  const totalCost = intCost + extCost;
+  const progressPct = extCost > 0 ? Math.round(used / extCost * 100) : 0;
+
+  return {
+    project: p, memberList, memberCount, avgRate,
+    firstMonths: halves.first, secondMonths: halves.second,
+    intCost, extCost, totalCost, progressPct
+  };
+}
+
+function getCostListFilteredProjects() {
+  const filterInput = document.getElementById('costlist-filter');
+  const kw = filterInput ? filterInput.value.trim().toLowerCase() : '';
+  let approved = projects.filter(p => p.status === 'approved');
+  if (kw) {
+    approved = approved.filter(function(p) {
+      const memberNames = (p.members || []).map(function(m) { return (m && typeof m === 'object') ? m.name : m; }).join(' ');
+      const hay = [p.name, p.applicant, memberNames].join(' ').toLowerCase();
+      return hay.indexOf(kw) !== -1;
+    });
+  }
+  return approved;
+}
+
+function renderCostList() {
+  ['year','first','second'].forEach(function(k) {
+    const btn = document.getElementById('costlist-tab-' + k);
+    if (btn) {
+      btn.style.background = k === costlistView ? '#1a1a1a' : '';
+      btn.style.color      = k === costlistView ? '#fff'    : '';
+      btn.style.fontWeight = k === costlistView ? '500'     : '';
+    }
+  });
+
+  if (!cfg.gasUrl) { document.getElementById('costlist-table').innerHTML = '<div class="empty">Googleスプレッドシートが未設定です</div>'; return; }
+
+  const rateInput = document.getElementById('costlist-rate');
+  const rate = rateInput ? (parseAmountInput(rateInput.value) || 0) : 0;
+  const approved = getCostListFilteredProjects();
+
+  if (approved.length === 0) {
+    document.getElementById('costlist-table').innerHTML = '<div class="empty">対象プロジェクトがありません</div>';
+    return;
+  }
+
+  const rows = approved.map(function(p) {
+    const r = computeCostRow(p, rate, costlistView);
+    const memberNamesDisp = r.memberList.map(function(m) { return esc(m.name); }).join(', ') || '—';
+    return '<tr>' +
+      '<td>' + esc(p.name) + '</td>' +
+      '<td>' + esc(p.applicant) + '</td>' +
+      '<td class="tr">' + r.firstMonths + '</td>' +
+      '<td class="tr">' + r.secondMonths + '</td>' +
+      '<td>' + memberNamesDisp + '</td>' +
+      '<td class="tr">' + r.memberCount + '</td>' +
+      '<td class="tr">' + Math.round(r.avgRate * 100) + '%</td>' +
+      '<td class="tr">¥' + Math.round(r.intCost).toLocaleString() + '</td>' +
+      '<td class="tr">¥' + Math.round(r.extCost).toLocaleString() + '</td>' +
+      '<td class="tr">¥' + Math.round(r.totalCost).toLocaleString() + '</td>' +
+      '<td class="tr">' + r.progressPct + '%</td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('costlist-table').innerHTML =
+    '<table><thead><tr>' +
+    '<th>プロジェクト名</th><th>申請者名</th><th class="tr">上期活動月数</th><th class="tr">下期活動月数</th>' +
+    '<th>メンバー名</th><th class="tr">メンバー数</th><th class="tr">平均稼働率</th>' +
+    '<th class="tr">社内原価</th><th class="tr">社外原価</th><th class="tr">原価合計</th><th class="tr">社外原価進捗率</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+function exportCostListCSV() {
+  const approved = getCostListFilteredProjects();
+  if (approved.length === 0) { alert('エクスポートするデータがありません'); return; }
+  const rateInput = document.getElementById('costlist-rate');
+  const rate = rateInput ? (parseAmountInput(rateInput.value) || 0) : 0;
+  const BOM = '\uFEFF';
+  let csv = BOM + 'プロジェクト名,申請者名,上期活動月数,下期活動月数,メンバー名,メンバー数,平均稼働率,社内原価,社外原価,原価合計,社外原価進捗率\n';
+  approved.forEach(function(p) {
+    const r = computeCostRow(p, rate, costlistView);
+    const memberNames = r.memberList.map(function(m) { return m.name; }).join('/');
+    csv += [
+      escCsv(p.name), escCsv(p.applicant), r.firstMonths, r.secondMonths,
+      escCsv(memberNames), r.memberCount, Math.round(r.avgRate * 100) + '%',
+      Math.round(r.intCost), Math.round(r.extCost), Math.round(r.totalCost), r.progressPct + '%'
+    ].join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '原価一覧_' + new Date().toLocaleDateString('ja-JP').replace(/\//g, '') + '.csv';
+  a.click();
 }
 
 let summaryView = 'year';
