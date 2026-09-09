@@ -2371,7 +2371,7 @@ function computeCostRow(p, rate, view) {
   return {
     project: p, memberList, memberCount, avgRate,
     firstMonths: halves.first, secondMonths: halves.second,
-    intCost, extCost, totalCost, progressPct
+    intCost, extCost, totalCost, used, progressPct
   };
 }
 
@@ -2425,9 +2425,13 @@ function renderCostList() {
     return;
   }
 
+  let totalFirstMonths = 0, totalSecondMonths = 0, totalMemberCount = 0;
+  let totalIntCost = 0, totalExtCost = 0, totalCostSum = 0, totalUsed = 0;
   const rows = approved.map(function(p) {
     const r = computeCostRow(p, rate, costlistView);
     const memberNamesDisp = r.memberList.map(function(m) { return esc(m.name); }).join(', ') || '—';
+    totalFirstMonths += r.firstMonths; totalSecondMonths += r.secondMonths; totalMemberCount += r.memberCount;
+    totalIntCost += r.intCost; totalExtCost += r.extCost; totalCostSum += r.totalCost; totalUsed += r.used;
     return '<tr>' +
       '<td>' + esc(p.name) + '</td>' +
       '<td>' + esc(p.applicant) + '</td>' +
@@ -2443,12 +2447,24 @@ function renderCostList() {
       '</tr>';
   }).join('');
 
+  const totalProgressPct = totalExtCost > 0 ? Math.round(totalUsed / totalExtCost * 100) : 0;
+  const tfoot = '<tr class="tfoot"><td colspan="2">合計</td>' +
+    '<td class="tr">' + totalFirstMonths + '</td>' +
+    '<td class="tr">' + totalSecondMonths + '</td>' +
+    '<td class="tr">' + totalMemberCount + '</td>' +
+    '<td class="tr">—</td>' +
+    '<td class="tr">¥' + Math.round(totalIntCost).toLocaleString() + '</td>' +
+    '<td class="tr">¥' + Math.round(totalExtCost).toLocaleString() + '</td>' +
+    '<td class="tr">¥' + Math.round(totalCostSum).toLocaleString() + '</td>' +
+    '<td class="tr">' + totalProgressPct + '%</td>' +
+    '<td class="tr">—</td></tr>';
+
   document.getElementById('costlist-table').innerHTML =
     '<table><thead><tr>' +
     '<th>プロジェクト名</th><th>申請者名</th><th class="tr">上期活動月数</th><th class="tr">下期活動月数</th>' +
     '<th class="tr">メンバー数</th><th class="tr">平均稼働率</th>' +
     '<th class="tr">社内原価</th><th class="tr">社外原価</th><th class="tr">原価合計</th><th class="tr">社外原価進捗率</th><th>メンバー名</th>' +
-    '</tr></thead><tbody>' + rows + '</tbody></table>';
+    '</tr></thead><tbody>' + rows + tfoot + '</tbody></table>';
 }
 
 function exportCostListCSV() {
