@@ -662,6 +662,7 @@ const LS = 'proj_app_cfg_v2';
 let cfg = JSON.parse(localStorage.getItem(LS) || '{}');
 cfg.approvalCode = cfg.approvalCode || 'admin1234';
 cfg.gasUrl = cfg.gasUrl || 'https://script.google.com/macros/s/AKfycbxF-AY5ZRQXCsEyC4qsJu1vokaIjHXOrzsQDm7tFC3HaDEjtQJp5VqWdOLOIcwPgqEcKg/exec';
+if (typeof cfg.costRate === 'undefined') cfg.costRate = 10000;
 if (typeof cfg.searchAllYears === 'undefined') cfg.searchAllYears = false;
 if (typeof cfg.hideDeletedInPjEdit === 'undefined') cfg.hideDeletedInPjEdit = true;
 // ⑧各種設定（本部予算・分類候補・承認メール配信先）はGoogleスプレッドシート側で管理し、
