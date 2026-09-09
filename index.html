@@ -468,6 +468,17 @@ code { background: #f5f5f3; padding: 1px 6px; border-radius: 4px; font-family: m
     <div class="section-header">
       <div class="section-heading">プロジェクト原価一覧</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="costlist-year" onchange="onCostListYearChange()" style="width:110px">
+          <option value="">年を選択</option>
+          <option value="2026">2026年</option>
+          <option value="2027">2027年</option>
+          <option value="2028">2028年</option>
+          <option value="2029">2029年</option>
+          <option value="2030">2030年</option>
+        </select>
+        <select id="costlist-category" onchange="onCostListCategoryChange()" style="width:140px">
+          <option value="">全分類</option>
+        </select>
         <div style="display:flex;gap:2px;border:1px solid #ddd;border-radius:8px;overflow:hidden" id="costlist-period-tabs">
           <button class="btn" id="costlist-tab-year"   onclick="setCostListView('year')"   style="border:none;border-radius:0;padding:6px 14px">年次</button>
           <button class="btn" id="costlist-tab-first"  onclick="setCostListView('first')"  style="border:none;border-left:1px solid #ddd;border-radius:0;padding:6px 14px">上期</button>
@@ -2281,9 +2292,23 @@ async function submitRevision() {
 }
 
 let costlistView = 'year';
+let costlistYear = '';
+let costlistCategory = '';
 
 function setCostListView(v) {
   costlistView = v;
+  renderCostList();
+}
+
+function onCostListYearChange() {
+  const sel = document.getElementById('costlist-year');
+  costlistYear = sel ? sel.value : '';
+  renderCostList();
+}
+
+function onCostListCategoryChange() {
+  const sel = document.getElementById('costlist-category');
+  costlistCategory = sel ? String(sel.value || '').trim() : '';
   renderCostList();
 }
 
@@ -2353,6 +2378,8 @@ function getCostListFilteredProjects() {
   const filterInput = document.getElementById('costlist-filter');
   const kw = filterInput ? filterInput.value.trim().toLowerCase() : '';
   let approved = projects.filter(p => p.status === 'approved');
+  if (costlistYear) approved = approved.filter(p => getProjYear(p) === costlistYear);
+  if (costlistCategory) approved = approved.filter(p => String(p.category || '').trim() === costlistCategory);
   if (kw) {
     approved = approved.filter(function(p) {
       const memberNames = (p.members || []).map(function(m) { return (m && typeof m === 'object') ? m.name : m; }).join(' ');
@@ -2375,6 +2402,19 @@ function renderCostList() {
 
   if (!cfg.gasUrl) { document.getElementById('costlist-table').innerHTML = '<div class="empty">Googleスプレッドシートが未設定です</div>'; return; }
 
+  // 年でフィルタした承認済みPJから分類選択肢を作る（⑥集計管理と同様の方式）
+  const allApproved = projects.filter(p => p.status === 'approved');
+  const yearFiltered = costlistYear ? allApproved.filter(p => getProjYear(p) === costlistYear) : allApproved;
+  const categories = [...new Set(getCategoryOptions().concat(yearFiltered.map(p => String(p.category || '').trim()).filter(Boolean)))].filter(Boolean).sort();
+  if (costlistCategory && categories.indexOf(costlistCategory) === -1) categories.unshift(costlistCategory);
+  const categorySel = document.getElementById('costlist-category');
+  if (categorySel) {
+    categorySel.innerHTML = '<option value="">全分類</option>' + categories.map(function(c) {
+      return '<option value="'+esc(c)+'"'+(c === costlistCategory ? ' selected' : '')+'>'+esc(c)+'</option>';
+    }).join('');
+    categorySel.value = costlistCategory || '';
+  }
+
   const rateInput = document.getElementById('costlist-rate');
   const rate = rateInput ? (parseAmountInput(rateInput.value) || 0) : 0;
   const approved = getCostListFilteredProjects();
@@ -2392,21 +2432,21 @@ function renderCostList() {
       '<td>' + esc(p.applicant) + '</td>' +
       '<td class="tr">' + r.firstMonths + '</td>' +
       '<td class="tr">' + r.secondMonths + '</td>' +
-      '<td>' + memberNamesDisp + '</td>' +
       '<td class="tr">' + r.memberCount + '</td>' +
       '<td class="tr">' + Math.round(r.avgRate * 100) + '%</td>' +
       '<td class="tr">¥' + Math.round(r.intCost).toLocaleString() + '</td>' +
       '<td class="tr">¥' + Math.round(r.extCost).toLocaleString() + '</td>' +
       '<td class="tr">¥' + Math.round(r.totalCost).toLocaleString() + '</td>' +
       '<td class="tr">' + r.progressPct + '%</td>' +
+      '<td>' + memberNamesDisp + '</td>' +
       '</tr>';
   }).join('');
 
   document.getElementById('costlist-table').innerHTML =
     '<table><thead><tr>' +
     '<th>プロジェクト名</th><th>申請者名</th><th class="tr">上期活動月数</th><th class="tr">下期活動月数</th>' +
-    '<th>メンバー名</th><th class="tr">メンバー数</th><th class="tr">平均稼働率</th>' +
-    '<th class="tr">社内原価</th><th class="tr">社外原価</th><th class="tr">原価合計</th><th class="tr">社外原価進捗率</th>' +
+    '<th class="tr">メンバー数</th><th class="tr">平均稼働率</th>' +
+    '<th class="tr">社内原価</th><th class="tr">社外原価</th><th class="tr">原価合計</th><th class="tr">社外原価進捗率</th><th>メンバー名</th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table>';
 }
 
@@ -2416,14 +2456,15 @@ function exportCostListCSV() {
   const rateInput = document.getElementById('costlist-rate');
   const rate = rateInput ? (parseAmountInput(rateInput.value) || 0) : 0;
   const BOM = '\uFEFF';
-  let csv = BOM + 'プロジェクト名,申請者名,上期活動月数,下期活動月数,メンバー名,メンバー数,平均稼働率,社内原価,社外原価,原価合計,社外原価進捗率\n';
+  let csv = BOM + 'プロジェクト名,申請者名,上期活動月数,下期活動月数,メンバー数,平均稼働率,社内原価,社外原価,原価合計,社外原価進捗率,メンバー名\n';
   approved.forEach(function(p) {
     const r = computeCostRow(p, rate, costlistView);
     const memberNames = r.memberList.map(function(m) { return m.name; }).join('/');
     csv += [
       escCsv(p.name), escCsv(p.applicant), r.firstMonths, r.secondMonths,
-      escCsv(memberNames), r.memberCount, Math.round(r.avgRate * 100) + '%',
-      Math.round(r.intCost), Math.round(r.extCost), Math.round(r.totalCost), r.progressPct + '%'
+      r.memberCount, Math.round(r.avgRate * 100) + '%',
+      Math.round(r.intCost), Math.round(r.extCost), Math.round(r.totalCost), r.progressPct + '%',
+      escCsv(memberNames)
     ].join(',') + '\n';
   });
   const blob = new Blob([csv], { type: 'text/csv' });
@@ -2668,21 +2709,21 @@ function renderSummary() {
       const used = hs.firstUsed + hs.secondUsed;
       const pct  = bud > 0 ? Math.round(used/bud*100) : 0;
       totalBudget += bud; totalRemain += rem; totalUsed += used;
-      return '<tr><td>'+esc(p.name)+'</td><td>'+esc(p.category||'—')+'</td><td>'+esc(p.pNumber||'—')+'</td><td>'+esc(p.applicant)+'</td>' +
+      return '<tr><td>'+esc(p.name)+'</td><td>'+esc(p.category||'—')+'</td><td>'+esc(p.applicant)+'</td>' +
         '<td class="tr">¥'+hs.firstBudget.toLocaleString()+'</td>' +
         '<td class="tr">¥'+hs.secondBudget.toLocaleString()+'</td>' +
         '<td class="tr">¥'+bud.toLocaleString()+'</td>' +
         '<td class="tr">¥'+used.toLocaleString()+'</td>' +
         '<td class="tr"'+(rem<0?' style="color:#e74c3c"':'')+'>¥'+rem.toLocaleString()+'</td>' +
-        '<td class="tr">'+pct+'%</td></tr>';
+        '<td class="tr">'+pct+'%</td><td>'+esc(p.pNumber||'—')+'</td></tr>';
     }).join('');
     const totPct = totalBudget > 0 ? Math.round(totalUsed/totalBudget*100) : 0;
-    rows += '<tr class="tfoot"><td colspan="3">合計</td>' +
+    rows += '<tr class="tfoot"><td colspan="2">合計</td>' +
       '<td class="tr">—</td><td class="tr">—</td>' +
       '<td class="tr">¥'+totalBudget.toLocaleString()+'</td>' +
       '<td class="tr">¥'+totalUsed.toLocaleString()+'</td>' +
       '<td class="tr">¥'+totalRemain.toLocaleString()+'</td>' +
-      '<td class="tr">'+totPct+'%</td></tr>';
+      '<td class="tr">'+totPct+'%</td><td class="tr">—</td></tr>';
     // A〜F を計算して表示
     const hq = (adminSettings.hqBudgets && adminSettings.hqBudgets[summaryYear]) || { first:0, second:0 };
     const A = Number(hq.first||0) + Number(hq.second||0); // 本部予算
@@ -2699,7 +2740,7 @@ function renderSummary() {
       '<div class="metric"><div class="metric-label">E 全PJの未使用総額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
       '<div class="metric" style="background:#fff0f3"><div class="metric-label">F 本部全体の残額（E＋C）</div><div class="metric-value">¥'+F.toLocaleString()+'</div></div>';
     document.getElementById('summary-table').innerHTML =
-      '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th>P#</th><th>申請者</th><th class="tr">上期予算</th><th class="tr">下期予算</th><th class="tr">年次予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th>申請者</th><th class="tr">上期予算</th><th class="tr">下期予算</th><th class="tr">年次予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th><th>P#</th></tr></thead><tbody>'+rows+'</tbody></table>';
 
   } else if (summaryView === 'all') {
     // 通期: 上期+下期を行分けして表示
@@ -2717,9 +2758,9 @@ function renderSummary() {
       const pctF = hs.firstBudget  > 0 ? Math.round(hs.firstUsed /hs.firstBudget *100) : 0;
       const pctS = hs.secondBudget > 0 ? Math.round(hs.secondUsed/hs.secondBudget*100) : 0;
       const pctT = bud > 0 ? Math.round(used/bud*100) : 0;
-      return '<tr><td rowspan="3" style="vertical-align:top;padding-top:8px">'+esc(p.name)+'</td><td rowspan="3" style="vertical-align:top;padding-top:8px">'+esc(p.category||'—')+'</td><td rowspan="3" style="vertical-align:top;padding-top:8px">'+esc(p.pNumber||'—')+'</td><td>上期</td>' +
+      return '<tr><td rowspan="3" style="vertical-align:top;padding-top:8px">'+esc(p.name)+'</td><td rowspan="3" style="vertical-align:top;padding-top:8px">'+esc(p.category||'—')+'</td><td>上期</td>' +
         '<td class="tr">¥'+hs.firstBudget.toLocaleString()+'</td><td class="tr">¥'+hs.firstUsed.toLocaleString()+'</td>' +
-        '<td class="tr"'+(hs.firstRemain<0?' style="color:#e74c3c"':'')+'>¥'+hs.firstRemain.toLocaleString()+'</td><td class="tr">'+pctF+'%</td></tr>' +
+        '<td class="tr"'+(hs.firstRemain<0?' style="color:#e74c3c"':'')+'>¥'+hs.firstRemain.toLocaleString()+'</td><td class="tr">'+pctF+'%</td><td rowspan="3" style="vertical-align:top;padding-top:8px">'+esc(p.pNumber||'—')+'</td></tr>' +
         '<tr><td>下期</td>' +
         '<td class="tr">¥'+hs.secondBudget.toLocaleString()+'</td><td class="tr">¥'+hs.secondUsed.toLocaleString()+'</td>' +
         '<td class="tr"'+(hs.secondRemain<0?' style="color:#e74c3c"':'')+'>¥'+hs.secondRemain.toLocaleString()+'</td><td class="tr">'+pctS+'%</td></tr>' +
@@ -2728,9 +2769,9 @@ function renderSummary() {
         '<td class="tr" style="font-weight:500'+(rem<0?';color:#e74c3c':'')+'">¥'+rem.toLocaleString()+'</td><td class="tr" style="font-weight:500">'+pctT+'%</td></tr>';
     }).join('');
     const totPct = totalBudget > 0 ? Math.round(totalUsed/totalBudget*100) : 0;
-    rows += '<tr class="tfoot"><td colspan="3">合計</td>' +
+    rows += '<tr class="tfoot"><td colspan="2">合計</td>' +
       '<td class="tr">¥'+totalBudget.toLocaleString()+'</td><td class="tr">¥'+totalUsed.toLocaleString()+'</td>' +
-      '<td class="tr">¥'+totalRemain.toLocaleString()+'</td><td class="tr">'+totPct+'%</td></tr>';
+      '<td class="tr">¥'+totalRemain.toLocaleString()+'</td><td class="tr">'+totPct+'%</td><td class="tr">—</td></tr>';
     // A〜F を計算して表示（通期）
     const hq = (adminSettings.hqBudgets && adminSettings.hqBudgets[summaryYear]) || { first:0, second:0 };
     const A = Number(hq.first||0) + Number(hq.second||0); // 本部予算
@@ -2747,7 +2788,7 @@ function renderSummary() {
       '<div class="metric"><div class="metric-label">E 全PJの未使用総額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
       '<div class="metric" style="background:#fff0f3"><div class="metric-label">F 本部全体の残額（E＋C）</div><div class="metric-value">¥'+F.toLocaleString()+'</div></div>';
     document.getElementById('summary-table').innerHTML =
-      '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th>P#</th><th class="tr">予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th class="tr">予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th><th>P#</th></tr></thead><tbody>'+rows+'</tbody></table>';
 
   } else {
     // 上期 or 下期
@@ -2761,18 +2802,18 @@ function renderSummary() {
       const used = isFirst ? hs.firstUsed   : hs.secondUsed;
       const pct  = bud > 0 ? Math.round(used/bud*100) : 0;
       totalBudget += bud; totalRemain += rem; totalUsed += used;
-      return '<tr><td>'+esc(p.name)+'</td><td>'+esc(p.category||'—')+'</td><td>'+esc(p.pNumber||'—')+'</td>' +
+      return '<tr><td>'+esc(p.name)+'</td><td>'+esc(p.category||'—')+'</td>' +
         '<td class="tr">¥'+bud.toLocaleString()+'</td>' +
         '<td class="tr">¥'+used.toLocaleString()+'</td>' +
         '<td class="tr"'+(rem<0?' style="color:#e74c3c"':'')+'>¥'+rem.toLocaleString()+'</td>' +
-        '<td class="tr">'+pct+'%</td></tr>';
+        '<td class="tr">'+pct+'%</td><td>'+esc(p.pNumber||'—')+'</td></tr>';
     }).join('');
     const totPct = totalBudget > 0 ? Math.round(totalUsed/totalBudget*100) : 0;
-    rows += '<tr class="tfoot"><td colspan="3">合計</td>' +
+    rows += '<tr class="tfoot"><td colspan="2">合計</td>' +
       '<td class="tr">¥'+totalBudget.toLocaleString()+'</td>' +
       '<td class="tr">¥'+totalUsed.toLocaleString()+'</td>' +
       '<td class="tr">¥'+totalRemain.toLocaleString()+'</td>' +
-      '<td class="tr">'+totPct+'%</td></tr>';
+      '<td class="tr">'+totPct+'%</td><td class="tr">—</td></tr>';
     // A〜F を計算して表示（該当期）
     const hq = (adminSettings.hqBudgets && adminSettings.hqBudgets[summaryYear]) || { first:0, second:0 };
     const A = isFirst ? Number(hq.first||0) : Number(hq.second||0); // 本部予算（該当期）
@@ -2789,7 +2830,7 @@ function renderSummary() {
       '<div class="metric"><div class="metric-label">E 全PJの未使用総額（B−D）</div><div class="metric-value">¥'+E.toLocaleString()+'</div></div>' +
       '<div class="metric" style="background:#fff0f3"><div class="metric-label">F 本部全体の残額（E＋C）</div><div class="metric-value">¥'+F.toLocaleString()+'</div></div>';
     document.getElementById('summary-table').innerHTML =
-      '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th>P#</th><th class="tr">'+label+'予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      '<table><thead><tr><th>プロジェクト名</th><th>分類</th><th class="tr">'+label+'予算</th><th class="tr">使用済み</th><th class="tr">残額</th><th class="tr">使用率</th><th>P#</th></tr></thead><tbody>'+rows+'</tbody></table>';
   }
 }
 
