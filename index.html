@@ -2701,7 +2701,7 @@ function renderSummary() {
 
   if (summaryView === 'year') {
     // 年次: 上期+下期まとめて表示
-    let totalBudget = 0, totalRemain = 0, totalUsed = 0;
+    let totalBudget = 0, totalRemain = 0, totalUsed = 0, totalFirstBudget = 0, totalSecondBudget = 0;
     let rows = approved.map(p => {
       const hs  = calcHalfAmounts(p);
       const bud = hs.firstBudget + hs.secondBudget;
@@ -2709,6 +2709,7 @@ function renderSummary() {
       const used = hs.firstUsed + hs.secondUsed;
       const pct  = bud > 0 ? Math.round(used/bud*100) : 0;
       totalBudget += bud; totalRemain += rem; totalUsed += used;
+      totalFirstBudget += hs.firstBudget; totalSecondBudget += hs.secondBudget;
       return '<tr><td>'+esc(p.name)+'</td><td>'+esc(p.category||'—')+'</td><td>'+esc(p.applicant)+'</td>' +
         '<td class="tr">¥'+hs.firstBudget.toLocaleString()+'</td>' +
         '<td class="tr">¥'+hs.secondBudget.toLocaleString()+'</td>' +
@@ -2719,7 +2720,9 @@ function renderSummary() {
     }).join('');
     const totPct = totalBudget > 0 ? Math.round(totalUsed/totalBudget*100) : 0;
     rows += '<tr class="tfoot"><td colspan="2">合計</td>' +
-      '<td class="tr">—</td><td class="tr">—</td><td class="tr">—</td>' +
+      '<td class="tr">—</td>' +
+      '<td class="tr">¥'+totalFirstBudget.toLocaleString()+'</td>' +
+      '<td class="tr">¥'+totalSecondBudget.toLocaleString()+'</td>' +
       '<td class="tr">¥'+totalBudget.toLocaleString()+'</td>' +
       '<td class="tr">¥'+totalUsed.toLocaleString()+'</td>' +
       '<td class="tr">¥'+totalRemain.toLocaleString()+'</td>' +
